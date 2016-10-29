@@ -23,18 +23,35 @@ CREATE TRIGGER bu_itemdetails before update ON itemdetails
 
 DROP TRIGGER IF EXISTS bi_coverages//
 CREATE TRIGGER bi_coverages before insert ON coverages
-	FOR EACH ROW
+	FOR EACH ROW BEGIN
 		IF NEW.amount IS NULL AND NEW.percentage IS NULL THEN
 				SIGNAL SQLSTATE '45102' 
 					SET MESSAGE_TEXT = 'Missing a valid value';
-		END IF//
+		END IF;
+		IF NEW.percentage IS NOT NULL AND NEW.percentage>100 THEN
+				SIGNAL SQLSTATE '45103' 
+					SET MESSAGE_TEXT = 'Invalid value';
+		END IF;
+	END//
 
 DROP TRIGGER IF EXISTS bu_coverages//
 CREATE TRIGGER bu_coverages before update ON coverages
-	FOR EACH ROW
-		IF NEW.amount is null AND NEW.percentage is null THEN
-				SIGNAL SQLSTATE '45102'
+	FOR EACH ROW BEGIN
+		IF NEW.amount IS NULL AND NEW.percentage IS NULL THEN
+				SIGNAL SQLSTATE '45102' 
 					SET MESSAGE_TEXT = 'Missing a valid value';
-		END IF//
+		END IF;
+		IF NEW.percentage IS NOT NULL AND NEW.percentage>100 THEN
+				SIGNAL SQLSTATE '45103' 
+					SET MESSAGE_TEXT = 'Invalid value';
+		END IF;
+	END//
+
+DROP TRIGGER IF EXISTS ai_dispensation//
+CREATE TRIGGER ai_dispensation AFTER INSERT on dispensation
+	FOR EACH ROW
+		INSERT INTO dispensation_states(dispId, disp_state_id)
+			VALUES(NEW.dispId, 'init')//
+
 
 DELIMITER ;

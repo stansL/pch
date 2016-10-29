@@ -8,6 +8,15 @@ delimiter ;
 SET FOREIGN_KEY_CHECKS = 1;
 -- 1. Reference data
 
+-- Entity: ServiceProvide
+
+drop table if exists sp;
+create table sp(
+		code int not null primary key
+		,name varchar(255) not null
+		,licenseEnd datetime not null
+);
+
 -- Entity: Exception Type
 drop table if exists exception_types;
 create table exception_types(
@@ -73,16 +82,31 @@ create table transmission_modes(
 	,constraint uniq_name unique(name)
 );
 
+
+-- Entity: Datatype
+drop table if exists datatypes;
+create table datatypes(
+	datatype varchar(16) not null primary key
+	,name varchar(32) not null
+	,descr varchar(128) not null
+	,sorter int not null default 9999
+	,constraint uniq_name unique(name)
+);
+
+
 /*
 Entity: ProductCategory Detail Type
+Kinds of details that are must be provided when a product is dispensed.
 */
 drop table if exists productcat_detail_types;
 create table productcat_detail_types(
 	detail_type_id int auto_increment not null primary key
 	,name varchar(32) not null
+	,datatype varchar(16) not null default 'text'
 	,descr varchar(128) not null
 	,sorter int not null default 9999
 	,constraint uniq_name unique(name)
+	,constraint foreign key(datatype) references datatypes(datatype) on delete no action
 );
 
 -- Entity: Product Category
@@ -137,7 +161,7 @@ create table insurer_status_types(
 -- Entity: Insurer
 drop table if exists insurers;
 create table insurers(
-		insurerId int auto_increment not null primary key
+		insurerId int not null primary key -- read from card; must already exist for visit to be created
 		,alias varchar(128) not null comment 'short name'
 		,name varchar(255) not null comment 'full name'
 		,status char(5) not null default 'act'
@@ -157,6 +181,7 @@ create table required_details(
 	catId int not null
 	,detail_type_id int not null
 	,insurerId int null-- null means it applies to all insurers
+	,mandatory boolean default TRUE -- must be provided?
 	,primary key(detail_type_id, catId) 
 	,constraint foreign key(insurerId) references insurers(insurerId) on delete cascade
 	,constraint foreign key(catId) references product_categories(catId) on delete cascade
@@ -215,9 +240,11 @@ create table approval_phone_nos(
 drop table if exists products;
 create table products(
 		productId integer auto_increment primary key not null
+		,productCode varchar(32) not null
 		,catId int not null
 		,cost decimal(10,2)
 		,descr varchar(255)
+		,constraint uniq_prodCode unique(productCode)
 		,constraint fk_product_category foreign key(catId) references product_categories(catId) on delete cascade
 ) ENGINE=InnoDB;
 
@@ -243,6 +270,19 @@ create table approval_reqmts(
 	,constraint foreign key(reqtypeId) references approval_reqmt_types(reqtypeId) on delete cascade
 ) ENGINE=InnoDB;
 
+
+-- Entity: Product Approval Requirement
+
+drop table if exists product_approval_reqmts;
+create table product_approval_reqmts(
+		approvalId int not null
+		,productId int not null
+		,value decimal default null -- null means: approval is required each and every time
+		,primary key(approvalId, productId)
+		,constraint foreign key(approvalId) references approval_reqmts(Id) on delete cascade
+		,constraint foreign key(productId) references products(productId) on delete cascade
+) ENGINE=InnoDB;
+
 --Entity: Package
 -- how will the packages be updated at the service provider??
 drop table if exists packages;
@@ -255,29 +295,18 @@ create table packages(
 	,constraint foreign key(insurerId) references insurers(insurerId) on delete cascade
 ) ENGINE=InnoDB;
 
-
 -- Entity: Coverage
 
 drop table if exists coverages;
 create table coverages(
-		catId int not null
+		coverageId int auto_increment not null primary key
+		,catId int not null
 		,packageId int not null
 		,amount decimal(8,2)
 		,percentage decimal(3,2)
 		,constraint check_values check(amount is not null or percentage is not null) /* use trigger; mysql doesnt do check */
 		,constraint foreign key(catId) references product_categories(catId) on delete cascade
 		,constraint foreign key(packageId) references packages(packageId) on delete cascade
-) ENGINE=InnoDB;
-
--- Entity: Product Approval Requirement
-
-drop table if exists product_approval_reqmts;
-create table product_approval_reqmts(
-		approvalId int not null
-		,productId int not null
-		,primary key(approvalId, productId)
-		,constraint foreign key(approvalId) references approval_reqmts(Id) on delete cascade
-		,constraint foreign key(productId) references products(productId) on delete cascade
 ) ENGINE=InnoDB;
 
 -- Entity: ExcludedProductCategory
@@ -301,8 +330,10 @@ create table beneficiaries(
 	,sex char(1) not null
 	,dob date not null
 	,insurerId int not null
+	,coverageId int not null
 	,constraint foreign key(insurerId) references insurers(insurerId) on delete cascade
---	,constraint fk_sex foreign key(sex) references gender_types(sex) on delete no action
+	,constraint foreign key(coverageId) references coverages(coverageId) on delete no action
+	,constraint fk_sex foreign key(sex) references gender_types(sex) on delete no action
 ) ENGINE=InnoDB;
 
 -- Entity: Visit
@@ -348,9 +379,12 @@ create table dispensation(
 		,insurer_discount decimal default 0 comment 'discount to the insurer_cost'
 		,insurer_cost decimal not null comment 'cost to the insurer'
 		,remark varchar(255)
-		,addedAt timestamp not null default current_timestamp
-		,userId int not null
+		,createdAt timestamp not null default current_timestamp
+		,createdBy int not null
+		,modifieddAt timestamp on update current_timestamp
+		,modifiedBy int
 --		,constraint uniq_q unique(visitId, productId)
+		,constraint foreign key(createdBy) references users(userId) on delete no action
 		,constraint foreign key(productId) references products(productId) on delete no action
 		,constraint foreign key(visitId) references visits(visitId) on delete cascade
 ) ENGINE=InnoDB;
@@ -383,6 +417,16 @@ create table dispensation_states(
 		,constraint foreign key(disp_state_id) references dispensation_state_types(disp_state_id) on delete no action
 ) ENGINE=InnoDB;
 
+--Entity: Approval Payload
+
+drop table if exists approval_payloads;
+create table approval_payloads(
+		dispId int not null primary key
+		,payload varchar(160) not null -- limit to size of an SMS
+		,createdAt timestamp not null default current_timestamp
+		,constraint foreign key(dispId) references dispensation(dispId) on delete cascade
+);
+
 -- Entity: Approval Request
 
 drop table if exists approval_reqs;
@@ -390,8 +434,8 @@ create table approval_reqs(
 		dispId int not null primary key -- we'll overwrite (update) if resending the request
 		,payload varchar(160) not null -- limit to size of an SMS
 		,approverId int not null
-		,TxAt timestamp -- time request was transmitted sent
-		,constraint foreign key(dispId) references dispensation(dispId) on delete cascade
+		,TxAt timestamp -- time request was transmitted. null: not yet send
+		,constraint foreign key(dispId) references approval_payloads(dispId) on delete cascade
 		,constraint foreign key(approverId) references approvers(approverId) on delete no action
 ) ENGINE=InnoDB;
 
