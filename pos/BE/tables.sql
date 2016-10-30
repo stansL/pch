@@ -304,6 +304,7 @@ create table coverages(
 		,packageId int not null
 		,amount decimal(8,2)
 		,percentage decimal(3,2)
+		,constraint uniq_catid unique(catid,packageId)
 		,constraint check_values check(amount is not null or percentage is not null) /* use trigger; mysql doesnt do check */
 		,constraint foreign key(catId) references product_categories(catId) on delete cascade
 		,constraint foreign key(packageId) references packages(packageId) on delete cascade
@@ -330,9 +331,9 @@ create table beneficiaries(
 	,sex char(1) not null
 	,dob date not null
 	,insurerId int not null
-	,coverageId int not null
+	,packageId int -- read package name from smartcard; use it to find packageId
 	,constraint foreign key(insurerId) references insurers(insurerId) on delete cascade
-	,constraint foreign key(coverageId) references coverages(coverageId) on delete no action
+	,constraint foreign key(packageId) references packages(packageId) on delete no action
 	,constraint fk_sex foreign key(sex) references gender_types(sex) on delete no action
 ) ENGINE=InnoDB;
 

@@ -68,6 +68,22 @@ BEGIN
 	return v_insuredId;
 END//
 
+DROP FUNCTION IF EXISTS visit2insurer//
+CREATE FUNCTION visit2insurer(p_visitId int, strict boolean) RETURNS int DETERMINISTIC
+/* return insurer for a visit */
+BEGIN
+ 	DECLARE v_insuredId int;
+
+	SET v_insuredId = (select b.insurerId
+	  from visits v
+	  join beneficiaries b ON b.benId=v.benId
+     where v.visitId=p_visitId);
+	IF v_insuredId IS NULL AND strict THEN
+		SIGNAL SQLSTATE '45203' SET MESSAGE_TEXT = 'Invalid visit ID';
+	END IF;
+	return v_insuredId;
+END//
+
 
 DROP FUNCTION IF EXISTS disp2visitId//
 CREATE FUNCTION disp2visitId(p_dispId int, strict boolean) RETURNS int DETERMINISTIC
@@ -80,20 +96,38 @@ BEGIN
 		RETURN v_visitId;
 END//
 
+DROP FUNCTION IF EXISTS productCat//
+CREATE FUNCTION productCat(p_productId integer) RETURNS INT
+-- get product category
+	RETURN (SELECT catId FROM products p WHERE p.productId=p_productId)//
+
+
 DROP FUNCTION IF EXISTS isExcludedProductCat//
 CREATE FUNCTION isExcludedProductCat(p_catId integer, p_insurerId int) RETURNS BOOLEAN
 	RETURN EXISTS(
 		SELECT * FROM excluded_categories WHERE catId=p_catId AND insurerId = p_insurerId
 		)//
 
-
 DROP FUNCTION IF EXISTS isExcludedProduct//
 CREATE FUNCTION isExcludedProduct(p_productId integer, p_insurerId int) RETURNS BOOLEAN
-	RETURN isExcludedProductCat(
-				  (SELECT catId
-					FROM products p
-					JOIN product_categories c ON p.catId=c.catId))
-//
+	RETURN isExcludedProductCat(productCat(p_productId), p_insurerId)//
+
+
+DROP FUNCTION IF EXISTS isCoveredProductCat//
+CREATE FUNCTION isCoveredProductCat(p_catId integer, p_benId int) RETURNS BOOLEAN
+/* is product category covered for the beneficiary? */
+	RETURN EXISTS(
+		SELECT * FROM beneficiaries b
+		  JOIN packages p ON b.packageId = p.packageId
+		  JOIN coverages c ON p.c.packageId AND c.catId = p_catId AND c.insurerId=b.insurerId
+		 WHERE b.benId=p_benId
+		)//
+
+
+DROP FUNCTION IF EXISTS isCoveredProduct//
+CREATE FUNCTION isCoveredProduct(p_productId integer, p_benId int) RETURNS BOOLEAN
+/* is product covered for the beneficiary? */
+	RETURN isCoveredProductCat(productCat(p_productId), p_benId)//
 
 DROP FUNCTION IF EXISTS detailMatchesCat//
 CREATE FUNCTION detailMatchesCat(p_dispId int, p_detail_type int) RETURNS BOOLEAN
@@ -180,7 +214,7 @@ CREATE PROCEDURE make_approval_payload(IN p_dispId int)
 
 		/* APPROVAL REQUIREMENT */
 
-		-- do nothing if approval request has been sent:
+		-- Must raise error if approval request has been sent:
 IF EXISTS(SELECT * FROM approval_reqs WHERE dispId = p_dispId) THEN
 		SIGNAL SQLSTATE '45205' SET MESSAGE_TEXT = 'Approval request exists';
 ELSE
@@ -300,14 +334,16 @@ BEGIN
         	END;
 
 		CALL verifyPrivilege(p_connId, 'addDispensation', 'ADDDISP');
+		/* apportion costs. Let's try to do this in a trigger */
 		CALL apportion_costs(p_visitId, p_productId, p_qty, p_UP, p_totcost, p_costToInsurer);
+
 		/* record dispensation */
 		START TRANSACTION;
 		INSERT INTO dispensation(visitId, productId, qty, unitcost, totalcost, insurer_cost,remark, createdBy)
 		       VALUES(p_visitId, p_productId, p_qty, p_UP, v_totcost, p_costToInsurer,
 				p_remarks, connId2userId(p_connId, TRUE));
 		SET p_dispId = LAST_INSERT_ID();
-		CALL make_approval_payload(p_dispId);
+		/* at this point, triggers will have done additional processing */
 		COMMIT;
 END//
 
@@ -330,13 +366,14 @@ BEGIN
         	END;
 
 		CALL verifyPrivilege(p_connId, 'updateDispensation', 'UPDDISP');
+		/* todo: try using trigger */
 		CALL apportion_costs(disp2visitId(p_dispId, TRUE), p_productId, p_qty, p_UP, p_totcost, p_costToInsurer);
 		START TRANSACTION;
 		UPDATE dispensation
 		   SET qty=p_qty, unitcost=p_UP, totalcost=p_totcost, insurer_cost=p_costToInsurer, 
 			   modifieddBy=connId2userId(p_connId, TRUE)
 		 WHERE displId=p_dispId;
-		CALL make_approval_payload(p_dispId); /* this will raise error if approval has already been sent. Update willl be rolled back */
+--		CALL make_approval_payload(p_dispId); /* this will raise error if approval has already been sent. Update willl be rolled back */
 		COMMIT;
 END//
 
