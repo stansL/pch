@@ -16,7 +16,7 @@ DELIMITER //
 DROP PROCEDURE IF EXISTS setup_sp//
 CREATE PROCEDURE setup_sp(p_connId VARCHAR(128), p_code INT, p_name VARCHAR(255), p_licenseEnd datetime)
 BEGIN
-		CALL verifyPrivilege(p_connId, 'setup_sp', 'SPSUPER');
+		CALL verifyPrivilege(p_connId, 'setup_sp', 'SPSETUP');
 		INSERT INTO VARIABLES(name,value) VALUES
 			('sp_code', CAST(p_code AS CHAR(32))), 
 			('sp_name', p_name),
@@ -27,7 +27,7 @@ END//
 DROP PROCEDURE IF EXISTS deactivate_sp//
 CREATE PROCEDURE deactivate_sp()
 BEGIN
-		CALL verifyPrivilege(p_connId, 'deactivate_sp', 'SPSUPER');
+		CALL verifyPrivilege(p_connId, 'deactivate_sp', 'SPDEACT');
 		UPDATE VARIABLES SET value='1900-01-01' WHERE name='sp_licend';
 END//
 
@@ -35,7 +35,7 @@ END//
 DROP PROCEDURE IF EXISTS update_sp//
 CREATE PROCEDURE update_sp(p_connId VARCHAR(128), p_code INT, p_name VARCHAR(255))
 BEGIN
-		CALL verifyPrivilege(p_connId, 'update_sp', 'SPADMIN');
+		CALL verifyPrivilege(p_connId, 'update_sp', 'SPMOD');
 		UPDATE VARIABLES SET value=p_name WHERE name='sp_name';
 	--	UPDATE VARIABLES SET value=p_phonenr WHERE name='sp_phonenr';
 END//
@@ -47,9 +47,10 @@ BEGIN
 		RETURN (SELECT CAST(value AS UNSIGNED)  FROM VARIABLES WHERE name='sp_code');
 END//
 
-/* -------------------- */
-/* Dispensation details */
-/* -------------------- */
+/* -------------------------- */
+/* General-purpose functions   */
+/* -------------------------- */
+
 DROP FUNCTION IF EXISTS disp2insurer//
 CREATE FUNCTION disp2insurer(p_dispId int, strict boolean) RETURNS int DETERMINISTIC
 /* return insurer for a dispensation */
@@ -78,6 +79,21 @@ BEGIN
 		END IF;
 		RETURN v_visitId;
 END//
+
+DROP FUNCTION IF EXISTS isExcludedProductCat//
+CREATE FUNCTION isExcludedProductCat(p_catId integer, p_insurerId int) RETURNS BOOLEAN
+	RETURN EXISTS(
+		SELECT * FROM excluded_categories WHERE catId=p_catId AND insurerId = p_insurerId
+		)//
+
+
+DROP FUNCTION IF EXISTS isExcludedProduct//
+CREATE FUNCTION isExcludedProduct(p_productId integer, p_insurerId int) RETURNS BOOLEAN
+	RETURN isExcludedProductCat(
+				  (SELECT catId
+					FROM products p
+					JOIN product_categories c ON p.catId=c.catId))
+//
 
 DROP FUNCTION IF EXISTS detailMatchesCat//
 CREATE FUNCTION detailMatchesCat(p_dispId int, p_detail_type int) RETURNS BOOLEAN
@@ -110,6 +126,14 @@ BEGIN
 	  order by d.sorter asc;
 END//
 
+/* -------------------- */
+/* Products		 	    */
+/* -------------------- */
+
+
+/* -------------------- */
+/* Insurers 	    */
+/* -------------------- */
 DROP PROCEDURE IF EXISTS addInsurer//
 CREATE PROCEDURE addInsurer(
 		IN p_connId VARCHAR(128),
@@ -122,6 +146,25 @@ BEGIN
 	INSERT INTO insurers(insurerId, alias, name) values(p_Id, p_alias, p_name);
 END//
 
+/* -------------------- */
+/* Coverage			    */
+/* -------------------- */
+
+DROP PROCEDURE IF EXISTS addPackage//
+CREATE PROCEDURE addPackage(
+			p_connId varchar(128),
+			p_name varchar(64), -- may be used for localisation
+			p_insurerId int,
+			p_descr varchar(255))
+BEGIN
+	CALL verifyPrivilege(p_connId, 'addPackage', 'ADDPACKG');
+	INSERT INTO packages(insurerId, name, descr) values
+		(p_insurerId, p_name, p_descr);
+END//
+
+/* -------------------- */
+/* Dispensation 	    */
+/* -------------------- */
 
 /*DROP FUNCTION IF EXISTS payload//
 CREATE FUNCTION payload(IN p_dispId int) RETURNS varchar(160)

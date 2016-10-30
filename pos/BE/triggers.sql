@@ -3,6 +3,7 @@
 
 Sat Oct 22 12:08:47 WAT 2016
 
+This file uses sqlstates 45100-45199
 */
 DELIMITER //
 
@@ -52,6 +53,14 @@ CREATE TRIGGER ai_dispensation AFTER INSERT on dispensation
 	FOR EACH ROW
 		INSERT INTO dispensation_states(dispId, disp_state_id)
 			VALUES(NEW.dispId, 'init')//
+
+DROP TRIGGER IF EXISTS bi_dispensation//
+CREATE TRIGGER bi_dispensation BEFORE INSERT on dispensation
+	FOR EACH ROW
+		IF isExcludedProduct(NEW.productId, disp2insurer(NEW.dispId, TRUE)) THEN
+				SIGNAL SQLSTATE '45105' 
+					SET MESSAGE_TEXT = 'Product is not offered';
+		END IF;
 
 
 DELIMITER ;
