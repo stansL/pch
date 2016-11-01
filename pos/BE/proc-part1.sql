@@ -514,11 +514,12 @@ CREATE PROCEDURE getDispensations4Visit(IN p_connId VARCHAR(128), IN p_visitId i
 	/* fetch all the items that were selected for dispensation */
 BEGIN
 	CALL verifyPrivilege(in_connId, 'getDispensations4Visit', 'RDDISP');
-	SELECT d.dispId, d.visitId, d.productId, d.qty, d.unitcost, d.totalcost,
-		   d.insurer_cost, ds.disp_state_id, dst.name, d.remark
-	  FROM dispensation d
+    SELECT d.dispId, d.visitId, d.productId, d.qty, d.unitcost, d.totalcost,
+           d.insurer_cost, ds.disp_state_id, dst.name, d.remark
+      FROM dispensation d
  LEFT JOIN dispensation_states ds ON ds.dispId=d.dispId AND ds.recId=(
-		SELECT MAX(recId) from dispensation_states WHERE dispId=d.dispId GROUP BY (dispId))
+		   SELECT MAX(recId) from dispensation_states WHERE dispId=d.dispId GROUP BY (dispId))
+ LEFT JOIN dispensation_state_types dst ON dst.disp_state_id=ds.disp_state_id
  	 WHERE d.visitId=p_visitId;
 END//
 
