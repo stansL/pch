@@ -60,14 +60,17 @@ CREATE TRIGGER bi_dispensation BEFORE INSERT on dispensation
 					SET MESSAGE_TEXT = 'Product is not covered';
 		END IF;
 		/* apportion costs. Will it work here?? else do it in addDispensation() */
-	--	CALL apportion_costs(NEW.visitId, NEW.productId, NEW.qty, NEW.unitcost, NEW.totalcost, NEW.insurer_cost);
+		SET @uprice = NEW.unitcost;
+		CALL apportion_costs(visit2benId(NEW.visitId), NEW.productId, NEW.qty, @uprice, @totalcost, @insurercost);
+		SET NEW.totalcost=@totalcost;
+		SET NEW.insurer_cost=@insurer_cost;
+		SET NEW.unitcost=@uprice;
 	END//
 
 DROP TRIGGER IF EXISTS ai_dispensation//
 CREATE TRIGGER ai_dispensation AFTER INSERT on dispensation
 	FOR EACH ROW BEGIN
-		INSERT INTO dispensation_states(dispId, disp_state_id)
-			VALUES(NEW.dispId, 'init');
+		CALL setDispState(NEW.dispId, 'init', 'dispensation created');
 		CALL make_approval_payload(NEW.dispId);
 	END//
 
@@ -83,7 +86,12 @@ CREATE TRIGGER bu_dispensation BEFORE UPDATE on dispensation
 					SET MESSAGE_TEXT = 'Product is not covered';
 		END IF;
 		/* apportion costs. Will it work here?? else do it in updateDispensation() */
-	--	CALL apportion_costs(NEW.visitId, NEW.productId, NEW.qty, NEW.unitcost, NEW.totalcost, NEW.insurer_cost);
+		SET @uprice = NEW.unitcost;
+		CALL apportion_costs(visit2benId(NEW.visitId), NEW.productId, NEW.qty, @uprice,
+			@totalcost, @insurercost);
+		SET NEW.totalcost=@totalcost;
+		SET NEW.insurer_cost=@insurer_cost;
+		SET NEW.unitcost=@uprice;
 	END//
 
 DROP TRIGGER IF EXISTS au_dispensation//
