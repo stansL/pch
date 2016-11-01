@@ -263,7 +263,7 @@ BEGIN
 	IF v_pkgId IS NULL THEN
 		BEGIN
 			SET @msg =  'Undefined package \''||p_package||'\' for '|| v_alias;
-			SIGNAL SQLSTATE '45232' SET MESSAGE_TEXT = @msg;
+			SIGNAL SQLSTATE '45234' SET MESSAGE_TEXT = @msg;
 		END;
 	END IF;
 	insert into beneficiaries(benId,surname,lastname,sex,dob,insurerId, packageId) VALUES
@@ -408,14 +408,11 @@ BEGIN
 		-- Tables(s) updated: <None>
 		-- Table(s) read	: visits, beneficiaries, coverages
 
-		DECLARE v_totcost DECIMAL;
-		DECLARE v_costToInsurer DECIMAL;
-
 		IF p_UP IS NULL THEN /* look up the unit price */
 				SET p_UP = IFNULL((select cost FROM products WHERE productId=p_productId), 0.0);
 		END IF;
-		SET v_totcost = p_UP * p_qty;
-		SET p_costToInsurer = v_totcost;
+		SET p_totcost = p_UP * p_qty;
+		SET p_costToInsurer = p_totcost;
 		BEGIN
 			/* - determine cap */
 				DECLARE v_pc float;
@@ -449,8 +446,6 @@ CREATE PROCEDURE addDispensation(
 				OUT p_costToInsurer DECIMAL
 				)
 BEGIN
-		DECLARE v_totcost DECIMAL;
-		DECLARE v_costToInsurer DECIMAL;
 		DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN
 			ROLLBACK;
 			RESIGNAL;
@@ -463,9 +458,12 @@ BEGIN
 		/* record dispensation */
 		START TRANSACTION;
 		INSERT INTO dispensation(visitId, productId, qty, unitcost, totalcost, insurer_cost,remark, createdBy)
-			   VALUES(p_visitId, p_productId, p_qty, p_UP, v_totcost, p_costToInsurer,
-				p_remarks, connId2userId(p_connId, TRUE));
+			   VALUES(p_visitId, p_productId, p_qty, p_UP, 0, 0, p_remarks, connId2userId(p_connId, TRUE));
 		SET p_dispId = LAST_INSERT_ID();
+		SELECT unitcost, totalcost, insurer_cost
+		  FROM dispensation
+		 WHERE dispId = p_dispId
+		  INTO p_UP, p_totcost, p_costToInsurer;
 		/* at this point, triggers will have done additional processing */
 		COMMIT;
 END//
@@ -475,14 +473,11 @@ CREATE PROCEDURE updateDispensation(
 				p_connId VARCHAR(128),
 				p_dispId int,
 				p_qty FLOAT,
-				p_UP DECIMAL,
+				INOUT p_UP DECIMAL,
 				OUT p_totcost DECIMAL,
 				OUT p_costToInsurer DECIMAL
 				)
 BEGIN
-		DECLARE v_totcost DECIMAL;
-		DECLARE v_costToInsurer DECIMAL;
-		DECLARE v_visitId int;
 		DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN
 			ROLLBACK;
 			RESIGNAL;
@@ -493,10 +488,13 @@ BEGIN
 --		CALL apportion_costs(disp2benId(p_dispId, TRUE), p_productId, p_qty, p_UP, p_totcost, p_costToInsurer);
 		START TRANSACTION; -- necessary because of work done by any triggers
 		UPDATE dispensation
-		   SET qty=p_qty, unitcost=p_UP, totalcost=p_totcost, insurer_cost=p_costToInsurer, 
-			   modifieddBy=connId2userId(p_connId, TRUE)
+		   SET qty=p_qty, unitcost=p_UP, modifieddBy=connId2userId(p_connId, TRUE)
 		 WHERE displId=p_dispId;
 --		CALL make_approval_payload(p_dispId); /* this will raise error if approval has already been sent. Update willl be rolled back */
+		SELECT unitcost, totalcost, insurer_cost
+		  FROM dispensation
+		 WHERE dispId = p_dispId
+		  INTO p_UP, p_totcost, p_costToInsurer;
 		COMMIT;
 END//
 
