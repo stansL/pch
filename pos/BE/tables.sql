@@ -113,7 +113,7 @@ create table productcat_detail_types(
 
 drop table if exists product_categories;
 create table product_categories(
-	catId int auto_increment not null primary key
+	catId int not null primary key /* to be set centrally */
 	,name varchar(32) not null
 	,descr varchar(128) not null
 	,sorter int not null default 9999
@@ -161,8 +161,13 @@ create table insurer_status_types(
 -- Entity: Insurer
 drop table if exists insurers;
 create table insurers(
-		insurerId int not null primary key -- read from card; must already exist for visit to be created
-		,alias varchar(128) not null comment 'short name'
+		/*
+		read ID from card; ID must already exist for visit to be created.
+		ID to assigned centrally to insurers
+		*/
+		insurerId int not null primary key
+		
+		,alias varchar(32) not null comment 'short name' -- may be stored on card
 		,name varchar(255) not null comment 'full name'
 		,status char(5) not null default 'act'
 		,createdAt timestamp not null default current_timestamp
@@ -240,7 +245,7 @@ create table approval_phone_nos(
 drop table if exists products;
 create table products(
 		productId integer auto_increment primary key not null
-		,productCode varchar(32) not null
+		,productCode varchar(32) not null -- assigned centrally
 		,catId int not null
 		,cost decimal(10,2)
 		,descr varchar(255)
@@ -289,7 +294,7 @@ drop table if exists packages;
 create table packages(
 	packageId int auto_increment not null primary key
 	,insurerId int not null
-	,name varchar(64) not null
+	,name varchar(32) not null
 	,descr varchar(255)
 	,constraint uniq_name unique(insurerId, name)
 	,constraint foreign key(insurerId) references insurers(insurerId) on delete cascade
@@ -408,12 +413,11 @@ create table itemdetails(
 
 drop table if exists dispensation_states;
 create table dispensation_states(
-		dispId int not null
+		recId int auto_increment not null primary key
+		,dispId int not null
 		,disp_state_id char(5) not null
 		,remark varchar(255)
 		,createdAt timestamp not null default current_timestamp
-		,modifiedAt timestamp
-		,primary key(dispId, disp_state_id)
 		,constraint foreign key(dispId) references dispensation(dispId) on delete cascade
 		,constraint foreign key(disp_state_id) references dispensation_state_types(disp_state_id) on delete no action
 ) ENGINE=InnoDB;
