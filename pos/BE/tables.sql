@@ -8,15 +8,6 @@ delimiter ;
 SET FOREIGN_KEY_CHECKS = 1;
 -- 1. Reference data
 
--- Entity: ServiceProvide
-
-drop table if exists sp;
-create table sp(
-		code int not null primary key
-		,name varchar(255) not null
-		,licenseEnd datetime not null
-);
-
 -- Entity: Exception Type
 drop table if exists exception_types;
 create table exception_types(
@@ -154,16 +145,31 @@ create table insurer_status_types(
 	,constraint uniq_name unique(name)
 );
 
---
+-- ---------------------------
 -- 2. transaction data
---
+-- ---------------------------
+
+-- Entity: Organisation
+drop table  if exists organisations;
+CREATE TABLE organisations (
+	/* the service provider */
+		orgId INTEGER auto_increment NOT NULL PRIMARY KEY
+		,code INTEGER NOT NULL -- this can also work as PK
+		,name VARCHAR(255) NOT NULL
+		,expiryDate datetime NOT NULL
+		,createdBy integer null
+		,createdAt timestamp not null default current_timestamp
+		,constraint uniq_code unique(code)
+		,constraint foreign key(createdBy) references users(userId) on delete no action
+);
 
 -- Entity: Insurer
 drop table if exists insurers;
 create table insurers(
 		/*
-		read ID from card; ID must already exist for visit to be created.
-		ID to assigned centrally to insurers
+		read insurer ID from the SC.
+		The ID must already exist we can create a visit.
+		ID is assigned centrally to insurers.
 		*/
 		insurerId int not null primary key
 		
@@ -175,6 +181,20 @@ create table insurers(
 		,constraint uniq_alias unique(alias)
 		,constraint foreign key(status) references insurer_status_types(typeId) on delete no action
 ) ENGINE=InnoDB;
+
+-- Entity: SP-Insurer Affiliation
+
+drop table if exists sp_affiliations;
+create table sp_affiliations(
+	insurerId int not null
+	,orgId int not  null
+	,status char(5) not null default 'inact'
+	,primary key(insurerId, orgId)
+	,constraint foreign key(insurerId) references insurers(insurerId) on delete cascade
+	,constraint foreign key(orgId) references organisations(orgId) on delete cascade
+	,constraint foreign key(status) references insurer_status_types(typeId) on delete no action
+
+);
 
 -- Entity: Detail Requirement
 -- details required when an item of the product category is dispensed
@@ -335,9 +355,11 @@ create table beneficiaries(
 	,lastname varchar(64)
 	,sex char(1) not null
 	,dob date not null
-	,insurerId int not null
+	,insurerId int not null -- insurer
+	,orgId int not null 	-- service provider
 	,packageId int -- read package name from smartcard; use it to find packageId
-	,constraint foreign key(insurerId) references insurers(insurerId) on delete cascade
+	,constraint foreign key(insurerId) references sp_affiliations(insurerId) on delete cascade
+	,constraint foreign key(orgId) references sp_affiliations(orgId) on delete cascade
 	,constraint foreign key(packageId) references packages(packageId) on delete no action
 	,constraint fk_sex foreign key(sex) references gender_types(sex) on delete no action
 ) ENGINE=InnoDB;
