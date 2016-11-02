@@ -5,6 +5,8 @@ Sat Oct 22 13:23:58 WAT 2016
 
 This file uses sqlstates 45200 - 45299
 
+Logging is not yet implemented for destructive routines!
+
 */
 
 DELIMITER //
@@ -361,7 +363,7 @@ ELSE
 		 WHERE dispId = p_dispId
 		  INTO v_visitId, v_productId, v_qty, v_totcost, v_costToInsurer;
 		IF FOUND_ROWS() = 0 THEN
-				SIGNAL SQLSTATE '45206' SET MESSAGE_TEXT = 'No such dispensation';
+				SIGNAL SQLSTATE '45201' SET MESSAGE_TEXT = 'No such dispensation';
 		END IF;
 		OPEN cur;
 		REPEAT
@@ -498,6 +500,29 @@ BEGIN
 		COMMIT;
 END//
 
+
+DROP FUNCTION IF EXISTS approvalSent//
+CREATE FUNCTION approvalSent(p_dispId int) RETURNS BOOLEAN
+-- has approval been sent?
+	RETURN EXISTS(SELECT * FROM aapproval_responses WHERE dispId = p_dispId)//
+
+
+DROP FUNCTION IF EXISTS responseRecvd//
+CREATE FUNCTION responseRecvd(p_dispId int) RETURNS BOOLEAN
+	RETURN EXISTS(SELECT * FROM approval_reqs WHERE dispId = p_dispId)//
+
+DROP PROCEDURE IF EXISTS cancelDispensaton//
+CREATE PROCEDURE cancelDispensaton(IN p_connId varchar(128), p_dispId int)
+BEGIN
+	IF (SELECT createdBy FROM dispensation WHERE dispId=p_dispId) <> connId2userId(p_connId, TRUE) THEN
+		CALL verifyPrivilege(in_connId, 'cancelDispensaton', 'DELDISP');
+	END IF;
+	/* NOTE: integrity checks will be performed before actual delete */
+	DELETE FROM dispensation WHERE dispId=p_dispId;
+	IF ROW_COUNT() = 0 THEN
+			SIGNAL SQLSTATE '45201' SET MESSAGE_TEXT = 'No such dispensation';
+	END IF;
+END//
 
 DROP PROCEDURE IF EXISTS getDispDetails//
 CREATE PROCEDURE getDispDetails(IN p_connId VARCHAR(128), p_dispId int)
