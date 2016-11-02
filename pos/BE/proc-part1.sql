@@ -15,22 +15,18 @@ DELIMITER //
 /* Setup service provider */
 /* ---------------------- */
 
-DROP PROCEDURE IF EXISTS setup_sp//
-CREATE PROCEDURE setup_sp(p_connId VARCHAR(128), p_code INT, p_name VARCHAR(255), p_licenseEnd datetime)
-BEGIN
-		CALL verifyPrivilege(p_connId, 'setup_sp', 'SPSETUP');
-		INSERT INTO VARIABLES(name,value) VALUES
-			('sp_code', CAST(p_code AS CHAR(32))), 
-			('sp_name', p_name),
-			('sp_licend', CAST(p_licenseEnd AS CHAR(32)));
-END//
-
-
 DROP PROCEDURE IF EXISTS deactivate_sp//
-CREATE PROCEDURE deactivate_sp()
+CREATE PROCEDURE deactivate_sp(p_connId VARCHAR(128), p_code INT)
 BEGIN
 		CALL verifyPrivilege(p_connId, 'deactivate_sp', 'SPDEACT');
-		UPDATE VARIABLES SET value='1900-01-01' WHERE name='sp_licend';
+		UPDATE organisations SET expiryDate='1970-01-01' WHERE code=p_code;
+END//
+
+DROP PROCEDURE IF EXISTS activate_sp//
+CREATE PROCEDURE activate_sp(p_connId VARCHAR(128), p_code INT, p_date datetime)
+BEGIN
+		CALL verifyPrivilege(p_connId, 'activate_sp', 'SPACT');
+		UPDATE organisations SET expiryDate=p_date WHERE code=p_code;
 END//
 
 
@@ -38,8 +34,8 @@ DROP PROCEDURE IF EXISTS update_sp//
 CREATE PROCEDURE update_sp(p_connId VARCHAR(128), p_code INT, p_name VARCHAR(255))
 BEGIN
 		CALL verifyPrivilege(p_connId, 'update_sp', 'SPMOD');
-		UPDATE VARIABLES SET value=p_name WHERE name='sp_name';
-	--	UPDATE VARIABLES SET value=p_phonenr WHERE name='sp_phonenr';
+		-- for now, just the name:
+		UPDATE organisations SET name=p_name WHERE code=p_code;
 END//
 
 
@@ -52,6 +48,17 @@ END//
 /* -------------------------- */
 /* Helper functions           */
 /* -------------------------- */
+
+DROP FUNCTION IF EXISTS benId2SPCode//
+CREATE FUNCTION benId2SPCode(p_benId int) RETURNS INTEGER DETERMINISTIC
+BEGIN
+	RETURN (
+		SELECT o.code
+		  FROM beneficiaries b
+		  JOIN sp_affiliations a ON b.insurerId = a.insurerId AND b.orgId=a.orgId
+		  JOIN organisations o ON o.orgId=a.orgId
+		 WHERE b.benId=p_benId);
+END//
 
 DROP FUNCTION IF EXISTS disp2insurer//
 CREATE FUNCTION disp2insurer(p_dispId int, strict BOOLEAN) RETURNS int DETERMINISTIC
@@ -378,10 +385,11 @@ ELSE
 							SET approval_needed = TRUE;
 							SET @benId = (SELECT benId FROM visits WHERE visitId = v_visitId);
 							SET @prodCode = (SELECT productCode FROM products WHERE productId=v_productId);
-							SET @payload = getSpCode() || '|' || @benId || '|' || p_dispId || '|' || 
-								@prodCode || '|' || 
+							SET @payload = benId2SPCode(@benId) || '|' || @benId || '|' || p_dispId ||
+								'|' || @prodCode || '|' || 
 								IFNULL(v_value, CASE v_type WHEN 'cost' THEN v_costToInsurer ELSE v_qty END);
-							REPLACE INTO payloads(dispId, payload, createdAt) VALUES(p_dispId, @payload, current_timestamp);
+							REPLACE INTO payloads(dispId, payload, createdAt) 
+									VALUES(p_dispId, @payload, current_timestamp);
 							CALL setDispState(p_dispId, 'pendi', 'payload created'); 
 							SET done=TRUE; -- we're sending only one approval request
 						END;
