@@ -100,6 +100,17 @@ CREATE TRIGGER au_dispensation AFTER UPDATE on dispensation
 		CALL make_approval_payload(NEW.dispId)
 	//
 
+DROP TRIGGER IF EXISTS bd_dispensation//
+CREATE TRIGGER bd_dispensation BEFORE DELETE on dispensation
+	FOR EACH ROW BEGIN
+			IF dispState(OLD.dispId) IN ('done', 'abort') THEN
+				SIGNAL SQLSTATE '45110' SET MESSAGE_TEXT = 'Already completed';
+			END IF;
+			IF responseRecvd(OLD.dispId) OR approvalSent(OLD.dispId) THEN
+				CALL setDispState(OLD.dispId, 'abort', 'cancelled by user');
+				SIGNAL SQLSTATE '45111' SET MESSAGE_TEXT = 'OK. State has been changed';
+			END IF;
+	END//
 
 
 DROP TRIGGER IF EXISTS bi_beneficiaries//
@@ -110,7 +121,7 @@ CREATE TRIGGER bi_beneficiaries BEFORE INSERT ON beneficiaries
 				NOT EXISTS (
 				SELECT * FROM packages
 				 WHERE packageId=NEW.packageId AND insurerId = NEW.insurerId) THEN 
-					SIGNAL SQLSTATE '45108'
+					SIGNAL SQLSTATE '45120'
 						SET MESSAGE_TEXT = 'Package not for insurer';
 		END IF//
 
@@ -122,7 +133,7 @@ CREATE TRIGGER bu_beneficiaries BEFORE UPDATE ON beneficiaries
 				NOT EXISTS (
 				SELECT * FROM packages
 				 WHERE packageId=NEW.packageId AND insurerId = NEW.insurerId) THEN 
-					SIGNAL SQLSTATE '45108'
+					SIGNAL SQLSTATE '45121'
 						SET MESSAGE_TEXT = 'Package not for insurer';
 		END IF//
 
