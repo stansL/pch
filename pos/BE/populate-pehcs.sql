@@ -80,12 +80,13 @@ delete from approval_reqmt_types;
 insert into approval_reqmt_types(reqtypeId, name, descr) values
 ('cost', 'apreq_cost', 'total cost exceeds threshold'),
 ('qty', 'apreq_quantity', 'quantity exceeds threshold');
--- approval is independent of the caps
+-- NOTE: approval is independent of coverage caps
 
 delete from insurer_status_types;
 insert into insurer_status_types(typeId, name, descr) values
 ('act','ins_status_active', 'Active'),
 ('inact', 'ins_status_inactive', 'Disabled'),
-('expir','ins_status_expired','Expired');
+('expir','ins_status_expired','Insurer license expired');
+('spexp','ins_status_spexpired','SP license expired');
 
 
