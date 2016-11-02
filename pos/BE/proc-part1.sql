@@ -39,12 +39,6 @@ BEGIN
 END//
 
 
-DROP FUNCTION IF EXISTS getSpCode//
-CREATE FUNCTION getSpCode() RETURNS INT DETERMINISTIC
-BEGIN
-		RETURN (SELECT CAST(value AS UNSIGNED)  FROM VARIABLES WHERE name='sp_code');
-END//
-
 /* -------------------------- */
 /* Helper functions           */
 /* -------------------------- */
@@ -246,7 +240,7 @@ BEGIN
 	DECLARE v_alias VARCHAR(32) DEFAULT NULL;
 --	DECLARE v_insurerId INT DEFAULT NULL;
 
-	CALL verifyPrivilege(in_connId, 'addBeneficiary', 'ADDBENI');
+	CALL verifyPrivilege(p_connId, 'addBeneficiary', 'ADDBENI');
 	/* verify insurerer status */
 	   SELECT i.alias, i.status, s.name
 	     FROM insurers i
@@ -523,7 +517,7 @@ DROP PROCEDURE IF EXISTS cancelDispensaton//
 CREATE PROCEDURE cancelDispensaton(IN p_connId varchar(128), p_dispId int)
 BEGIN
 	IF (SELECT createdBy FROM dispensation WHERE dispId=p_dispId) <> connId2userId(p_connId, TRUE) THEN
-		CALL verifyPrivilege(in_connId, 'cancelDispensaton', 'DELDISP');
+		CALL verifyPrivilege(p_connId, 'cancelDispensaton', 'DELDISP');
 	END IF;
 	/* NOTE: integrity checks will be performed before actual delete */
 	DELETE FROM dispensation WHERE dispId=p_dispId;
@@ -535,7 +529,7 @@ END//
 DROP PROCEDURE IF EXISTS getDispDetails//
 CREATE PROCEDURE getDispDetails(IN p_connId VARCHAR(128), p_dispId int)
 BEGIN
-	CALL verifyPrivilege(in_connId, 'getDispDetails', 'RDDISP');
+	CALL verifyPrivilege(p_connId, 'getDispDetails', 'RDDISP');
 	SELECT dispId, visitId, productId, qty, unitcost, totalcost, insurer_cost,remark,
 			createdBy, createdAt, modifiedBy,  createdBy
 	  FROM dispensation WHERE dispId=p_dispId;
@@ -546,7 +540,7 @@ DROP PROCEDURE IF EXISTS getDispensations4Visit//
 CREATE PROCEDURE getDispensations4Visit(IN p_connId VARCHAR(128), IN p_visitId int)
 	/* fetch all the items that were selected for dispensation */
 BEGIN
-	CALL verifyPrivilege(in_connId, 'getDispensations4Visit', 'RDDISP');
+	CALL verifyPrivilege(p_connId, 'getDispensations4Visit', 'RDDISP');
     SELECT d.dispId, d.visitId, d.productId, d.qty, d.unitcost, d.totalcost,
            d.insurer_cost, ds.disp_state_id, dst.name, d.remark
       FROM dispensation d
