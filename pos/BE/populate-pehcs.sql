@@ -6,7 +6,7 @@ insert into exception_types(ex_code, name, descr) values
 ('rcufail','ex_remote_sc_upd_failed', 'Remote smart card update failed'),
 ('scinval', 'ex_card_invalid', 'Card data is corrupt'),
 ('noresume', 'ex_cant_resume', 'Cannot resume visit (e.g. because verification failed)'),
-('exvisit', 'ex_visit_timdeout', 'Visit timed out');
+('timeout', 'ex_visit_timdeout', 'Visit timed out (e.g. open for too long)');
 
 delete from verification_types;
 insert into verification_types(veri_type_id, name, descr) values
@@ -25,7 +25,8 @@ insert into dispensation_state_types(disp_state_id, name, descr) values
 ('init','disp_started', 'Started'),
 ('done', 'disp_completed', 'Completed'),
 ('ok','disp_ok', 'Approval not required'),
-('pendi','disp_apprvl_pending', 'Approval pending')
+('pendi','disp_apprvl_pending', 'Approval pending'),
+('abort','disp_abandoned', 'Abandoned')
 /*,('approved','disp_approved', 'Approved')
 (',rejected','disp_rejected', 'Not approved--rejected')*/;
 
