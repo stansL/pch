@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<jnlp spec="1.0" xmlns:jfx="http://javafx.com" href="pechs-ant.jnlp">
+  <information>
+    <title>pechs-ant</title>
+    <vendor>user</vendor>
+    <description>null</description>
+    <offline-allowed/>
+  </information>
+  <resources>
+    <j2se version="1.6+" href="http://java.sun.com/products/autodl/j2se"/>
+    <jar href="lib\converter-gson-2.1.0.jar" size="5494" download="eager" />
+    <jar href="lib\gson-2.7.jar" size="231952" download="eager" />
+    <jar href="lib\ikonli-core-1.8.0.jar" size="8987" download="eager" />
+    <jar href="lib\ikonli-fontawesome-pack-1.8.0.jar" size="607006" download="eager" />
+    <jar href="lib\ikonli-javafx-1.8.0.jar" size="33334" download="eager" />
+    <jar href="lib\jna-9.0.jar" size="1139545" download="eager" />
+    <jar href="lib\neurotec-biometrics-9.0.jar" size="981820" download="eager" />
+    <jar href="lib\neurotec-biometrics-client-9.0.jar" size="52095" download="eager" />
+    <jar href="lib\neurotec-biometrics-gui-9.0.jar" size="149393" download="eager" />
+    <jar href="lib\neurotec-core-9.0.jar" size="701718" download="eager" />
+    <jar href="lib\neurotec-devices-9.0.jar" size="214404" download="eager" />
+    <jar href="lib\neurotec-gui-9.0.jar" size="212427" download="eager" />
+    <jar href="lib\neurotec-licensing-9.0.jar" size="47794" download="eager" />
+    <jar href="lib\neurotec-media-9.0.jar" size="247943" download="eager" />
+    <jar href="lib\neurotec-media-processing-9.0.jar" size="20285" download="eager" />
+    <jar href="lib\okhttp-3.3.0.jar" size="343528" download="eager" />
+    <jar href="lib\okio-1.8.0.jar" size="72016" download="eager" />
+    <jar href="lib\retrofit-2.1.0.jar" size="88343" download="eager" />
+    <jar href="pechs-ant.jar" size="36940" download="eager" />
+  </resources>
+  <applet-desc  width="800" height="600" main-class="com.javafx.main.NoJavaFXFallback"  name="pechs-ant" >
+    <param name="requiredFXVersion" value="8.0+"/>
+  </applet-desc>
+  <jfx:javafx-desc  width="800" height="600" main-class="com.pethers.pehcs.ant.Main"  name="pechs-ant" />
+  <update check="always"/>
+</jnlp>

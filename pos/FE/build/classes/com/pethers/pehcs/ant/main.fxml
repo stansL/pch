@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.*?>
+<?import java.util.*?>
+<?import javafx.geometry.*?>
+<?import javafx.scene.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.*?>
+
+<BorderPane id="AnchorPane" fx:id="borderPane" prefHeight="471.0" prefWidth="819.0" xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/2.2" fx:controller="com.pethers.pehcs.ant.MainController">
+  <center>
+    <TabPane fx:id="visitPane" prefHeight="200.0" prefWidth="200.0" side="BOTTOM" tabClosingPolicy="SELECTED_TAB">
+     
+    </TabPane>
+  </center>
+  <top>
+    <HBox maxWidth="1.7976931348623157E308" prefHeight="89.0" prefWidth="516.0">
+      <children>
+        <TabPane prefHeight="58.0" prefWidth="516.0" tabClosingPolicy="UNAVAILABLE" HBox.hgrow="ALWAYS">
+          <tabs>
+            <Tab text="Visits">
+              <content>
+                <AnchorPane id="Content" minHeight="0.0" minWidth="0.0" prefHeight="44.0" prefWidth="516.0">
+                  <children>
+                    <ToolBar id="toolbar" maxWidth="1.7976931348623157E308" minWidth="-1.0" orientation="HORIZONTAL" prefHeight="58.0" prefWidth="693.0" style="" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                      <items>
+                        <Button fx:id="addButton" mnemonicParsing="false" onAction="#addVisit" text="Add" />
+                        <Button fx:id="resumeButton" mnemonicParsing="false" text="Resume" />
+                      </items>
+                    </ToolBar>
+                  </children>
+                </AnchorPane>
+              </content>
+            </Tab>
+            <Tab text="Report">
+              <content>
+                <AnchorPane id="Content" minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0" />
+              </content>
+            </Tab>
+            <Tab text="Setup">
+              <content>
+                <AnchorPane id="Content" minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0" />
+              </content>
+            </Tab>
+          </tabs>
+        </TabPane>
+      </children>
+    </HBox>
+  </top>
+</BorderPane>
