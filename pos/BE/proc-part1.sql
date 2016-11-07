@@ -369,10 +369,10 @@ ELSE
 		OPEN cur;
 		REPEAT
 			FETCH cur INTO v_type, v_value; -- v_type, v_value: approval requirement types and the threshold values
-			IF v_type NOT IN ('cost','qty') THEN
-				SIGNAL SQLSTATE '45210' SET MESSAGE_TEXT = 'Not implemented';
-			END IF;
 			IF NOT done THEN
+				IF v_type NOT IN ('cost','qty') THEN
+					SIGNAL SQLSTATE '45210' SET MESSAGE_TEXT = 'Not implemented';
+				END IF;
 				IF v_value IS NULL OR v_value <
 					CASE v_type WHEN 'cost' THEN v_costToInsurer ELSE v_qty END THEN
 						BEGIN
