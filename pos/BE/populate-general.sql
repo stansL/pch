@@ -1,17 +1,26 @@
 -- generic reference data.
--- mfotang, 16-jul-14
+-- fotang, 8-Nov-16
 --
 -- this file must accompany tables0.sql
 
--- revision: Fri Dec 25 08:14:15 WAT 2015 (mfotang):
 -- 		- insert countries only after occupation_categories 
 --		  because of TRIGGER ai_countries
 -- 
 
 --#SET TERMINATOR ;
-
+DELIMITER ;
 delete from PermissionTypes;
 INSERT INTO PermissionTypes(mode,Description) VALUES('USER','manage users'),('DATA','administer system data'), ('AUTEX','authorise excetions'), ('SYS', 'system rule keeper'), ('MONITOR', 'monitor events');
+
+INSERT INTO PermissionTypes(mode,Description, sort) VALUES
+	('ADMORG','administer organisations',1000),
+	('ADDORG','add a new organisation',1001),
+	('UPDORG','modify basic organisation information',1005),
+	('DELORG','remove an organisation', 1015);
+INSERT INTO PermissionTypes(mode,Description, sort) VALUES
+	('ADDQTR','add a new residential area', 800),
+	('UPDQTR','modify a new residential area', 804),
+	('DELQTR','remove a new residential area', 806);
 
 delete from PermissionTypesX;
 insert into PermissionTypesX(ptype) values ('SYS'),('MONITOR');
