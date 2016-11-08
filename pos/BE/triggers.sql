@@ -159,10 +159,7 @@ FOR EACH ROW BEGIN
 
 	INSERT INTO Roles(roleName,Description, orgId) VALUES('system','system rule keeper', out_orgId);
 	SET v_roleId= LAST_INSERT_ID();
-	INSERT INTO Permissions(mode,RoleID) VALUES('SYS', v_roleId),
-	('ADDCATRANS', v_roleId),
-	('ADDBATRANS', v_roleId),
-	('ADDICTRANS', v_roleId);
+	INSERT INTO Permissions(mode,RoleID) VALUES('SYS', v_roleId);
 	INSERT INTO users(orgId, Username,Password,Surname, othernames)
 	    VALUES(out_orgId, 'system', PASSWORD('___0  ____'), 'system','internal rule keeper');
 	SET v_userId = LAST_INSERT_ID();
