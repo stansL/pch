@@ -138,4 +138,75 @@ CREATE TRIGGER bu_beneficiaries BEFORE UPDATE ON beneficiaries
 		END IF//
 
 
+DROP TRIGGER IF EXISTS ai_OrgsG3N3RAL//
+CREATE TRIGGER ai_OrgsG3N3RAL AFTER INSERT ON organisations
+FOR EACH ROW BEGIN 
+	DECLARE v_userId int;
+	DECLARE v_roleId int;
+	DECLARE v_wheel int;
+	DECLARE v_sysusr int;
+	DECLARE out_orgId int;
+
+	SET out_orgId=NEW.orgId;
+--	BEGIN ATOMIC -- START TRANSACTION;
+	INSERT INTO Roles(roleName,Description, orgId) VALUES('wheel', 'user administrative tasks', out_orgId);
+	SET v_wheel=LAST_INSERT_ID();
+	INSERT INTO Permissions(mode,RoleID) VALUES('USER', v_wheel);
+	INSERT INTO users(orgId, Username,Password,Surname)
+	       VALUES(out_orgId, 'wheel',  PASSWORD('3biggxz'), 'Big Wheel');
+	SET v_userId = LAST_INSERT_ID();
+	INSERT INTO User_roles(userId, roleId) VALUES(v_userId, v_wheel);
+
+	INSERT INTO Roles(roleName,Description, orgId) VALUES('system','system rule keeper', out_orgId);
+	SET v_roleId= LAST_INSERT_ID();
+	INSERT INTO Permissions(mode,RoleID) VALUES('SYS', v_roleId),
+	('ADDCATRANS', v_roleId),
+	('ADDBATRANS', v_roleId),
+	('ADDICTRANS', v_roleId);
+	INSERT INTO users(orgId, Username,Password,Surname, othernames)
+	    VALUES(out_orgId, 'system', PASSWORD('___0  ____'), 'system','internal rule keeper');
+	SET v_userId = LAST_INSERT_ID();
+	SET v_sysusr=v_userId;
+	INSERT INTO User_roles(userId, roleId) VALUES(v_userId, v_roleId);
+
+	INSERT INTO Roles(roleName,Description, orgId) VALUES('supervisor','Authorize exceptions', out_orgId);
+	SET v_roleId= LAST_INSERT_ID();
+	INSERT INTO Permissions(mode,RoleID) VALUES('AUTEX', v_roleId);
+
+	INSERT INTO users(orgId, Username,Password,Surname, othernames)
+		VALUES(out_orgId, 'super', PASSWORD('p@55wd'),'Super','Authorizor');
+	SET v_userId = LAST_INSERT_ID();
+	INSERT INTO User_roles(userId, roleId) VALUES(v_userId, v_roleId);
+
+	INSERT INTO Roles(roleName,Description, orgId) VALUES('admin','system administrator',out_orgId);
+	SET v_roleId= LAST_INSERT_ID();
+	INSERT INTO Permissions(mode,RoleID) VALUES('DATA', v_roleId),
+	('ADDQTR', v_roleId),
+	('UPDQTR', v_roleId),
+	('DELQTR', v_roleId),
+	('ADMORG', v_roleId),
+	('UPDORG', v_roleId),
+	('DELORG', v_roleId),
+	('ADDORGDADDR', v_roleId),
+	('UPDORGDADDR', v_roleId),
+	('DELORGDADDR', v_roleId),
+	('ADDORGFONE', v_roleId),
+	('UPDORGFONE', v_roleId),
+	('DELORGFONE', v_roleId),
+	('ADDORGEMAIL', v_roleId),
+	('UPDORGEMAIL', v_roleId),
+	('DELORGEMAIL', v_roleId),
+	('ADDORGCONTACT', v_roleId),
+	('UPDORGCONTACT', v_roleId),
+	('DELORGCONTACT', v_roleId),
+	('USER', v_roleId),
+	('AUTEX', v_roleId);
+	INSERT INTO Roles(roleName,Description, orgId) VALUES('reports','generate reports',out_orgId);
+
+--	insert into salutation_types2(abbrev, orgId, descr, sort) select s.salut_id, out_orgId, s.descr, 100 from salutation_types s order by sort,salut_id asc;
+
+-- END;--	COMMIT;
+END//
+
+
 DELIMITER ;
