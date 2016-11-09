@@ -20,9 +20,6 @@ public class Main extends Application {
         
     @Override
     public void start(Stage stage) throws Exception {
-        //String myLibraryPath = System.getProperty("user.dir");//or another absolute or relative path
-
-        //System.setProperty("java.library.path", "Win64_x64");
         System.loadLibrary("NLicensing");
         System.loadLibrary("NCore");
         System.loadLibrary("NBiometricClient");

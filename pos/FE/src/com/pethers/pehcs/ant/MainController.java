@@ -15,15 +15,15 @@ import com.neurotec.devices.NDeviceManager;
 import com.neurotec.devices.NDeviceType;
 import com.neurotec.devices.NFScanner;
 import com.neurotec.licensing.NLicense;
+import com.neurotec.licensing.NLicensingService;
 import com.pethers.pehcs.entities.Visitor;
 import com.pethers.pehcs.neurotec.utils.ImageConverter;
 import com.pethers.pehcs.neurotec.utils.LibraryManager;
 import com.pethers.pehcs.services.CardService;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.EnumSet;
-import java.util.List;
 import java.util.ResourceBundle;
+import java.util.logging.Logger;
 import javafx.event.ActionEvent;
 import javafx.event.Event;
 import javafx.event.EventHandler;
@@ -31,6 +31,7 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.geometry.Pos;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
@@ -52,6 +53,7 @@ import javafx.scene.layout.RowConstraints;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.stage.Modality;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import org.kordamp.ikonli.javafx.FontIcon;
 
@@ -75,17 +77,8 @@ public class MainController implements Initializable {
         final String components = "Biometrics.FingerExtraction,Devices.FingerScanners";
         LibraryManager.initLibraryPath();        
         
-        List<String> requiredLicenses = new ArrayList<String>();
-        requiredLicenses.add("Biometrics.FingerExtraction");
-        requiredLicenses.add("Devices.FingerScanners");
-        List<String> optionalLicenses = new ArrayList<>();
-        optionalLicenses.add("Images.WSQ");
-
-        FingersTools.getInstance().getClient().setUseDeviceManager(true);
-        deviceManager = FingersTools.getInstance().getClient().getDeviceManager();
-        deviceManager.setDeviceTypes(EnumSet.of(NDeviceType.FINGER_SCANNER));
-        deviceManager.initialize();
         try {
+            Logger.getAnonymousLogger().info("Licence server is "+NLicensingService.getStatus());
             if (!NLicense.obtainComponents("/local", 5000, components)) {
                 Alert alert = new Alert(AlertType.WARNING);
                 alert.setTitle("No Licence");
@@ -101,14 +94,7 @@ public class MainController implements Initializable {
             deviceManager.setDeviceTypes(EnumSet.of(NDeviceType.FINGER_SCANNER));
             deviceManager.initialize();
             ListDialogController.devices = deviceManager.getDevices();
-            if (ListDialogController.devices.size() > 1) {
-                showDevicesDialog();
-            } else {
-                Alert alert = new Alert(AlertType.ERROR);
-                alert.setTitle("No scanner");
-                alert.setContentText("No scanner was found");
-                alert.showAndWait();
-            }
+            showDevicesDialog();        
            
            
         } catch (Exception th) {
@@ -116,12 +102,6 @@ public class MainController implements Initializable {
         }
     }
     
-    protected void updateFingersTools() {
-            FingersTools.getInstance().getClient().reset();
-            FingersTools.getInstance().getClient().setUseDeviceManager(true);
-            FingersTools.getInstance().getClient().setFingersReturnBinarizedImage(true);
-    }
-
     public static NBiometricStatus capture(NSubject subject){
         if(biometricClient==null){
             Alert alert = new Alert(AlertType.ERROR);
@@ -146,6 +126,10 @@ public class MainController implements Initializable {
         stage.initModality(Modality.APPLICATION_MODAL);
        // stage.initStyle(StageStyle.UNDECORATED);
         //stage.initOwner(emailField.getScene().getWindow());
+        Rectangle2D primScreenBounds = Screen.getPrimary().getVisualBounds();
+        stage.setX((primScreenBounds.getWidth() - stage.getWidth()) / 2);
+        stage.setY((primScreenBounds.getHeight() - stage.getHeight()) / 2);
+        
         stage.setScene(scene);
         stage.setOnCloseRequest(new EventHandler(){
             @Override
