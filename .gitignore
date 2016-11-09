@@ -3,9 +3,11 @@
 /pos/FE/build
 /pos/FE/FScanners
 /pos/FE/nbproject
+/pos/FE/Neurotec.*.xml
 *.com
 *.class
 *.dll
+*.lib
 *.exe
 *.o
 *.so
