@@ -23,7 +23,7 @@ INSERT INTO PermissionTypes(mode,Description, sort) VALUES
 	('ADDINSURER','Add insurer',2000),
 	('UPDINSURER','Modify insurer',2001),
 	('DELINSURER','Remove insurer',2002),
-/*	('ADDBENIF','Add beneficiary', 2200), -- */
+	('ADDBENIF','Serve a new beneficiary', 2200), /* a beneficiary who isnt already in the system */
 	('DELBENIF','Remove beneficiary', 2202),
 	('UPDBENIF','Modify beneficiary', 2203),
 	('ADDPACKG','Add a package', 2300),
