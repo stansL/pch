@@ -28,7 +28,7 @@ create table audit_logs(
 	, details varchar(1024) not null
 	, final int not null default 0-- 0 => request to change data; 1=>request successful
 	, theTime timestamp not null
-);
+) ENGINE = MyISAM; /* so that inserts are atomic*/
 
 drop table if exists MachineIDTypes;
 CREATE TABLE MachineIDTypes (
