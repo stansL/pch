@@ -264,7 +264,7 @@ BEGIN
 	DECLARE v_alias VARCHAR(32) DEFAULT NULL;
 --	DECLARE v_insurerId INT DEFAULT NULL;
 
-	CALL verifyPrivilege(p_connId, 'addBeneficiary', 'ADDBENI');
+	CALL verifyPrivilege(p_connId, 'addBeneficiary', 'ADDBENIF');
 	/* verify insurerer status */
 	   SELECT i.alias, i.status, s.name
 	     FROM insurers i
