@@ -198,6 +198,18 @@ FOR EACH ROW BEGIN
 	('DELORGCONTACT', v_roleId),
 	('USER', v_roleId),
 	('AUTEX', v_roleId);
+	INSERT INTO Roles(roleName,Description, orgId) VALUES('operator', 'dispense services', out_orgId);
+	SET v_roleId= LAST_INSERT_ID();
+	INSERT INTO Permissions(mode,RoleID) VALUES
+	('ADDVISIT', v_roleId),
+	('ENDVISIT', v_roleId),
+	('RESVISIT', v_roleId),
+	('ADDBENIF', v_roleId),
+	('ADDDISP', v_roleId),
+	('UPDDISP', v_roleId),
+	-- ('DELDISP', v_roleId),
+	('RDDISP', v_roleId);
+
 	INSERT INTO Roles(roleName,Description, orgId) VALUES('reports','generate reports',out_orgId);
 
 --	insert into salutation_types2(abbrev, orgId, descr, sort) select s.salut_id, out_orgId, s.descr, 100 from salutation_types s order by sort,salut_id asc;
