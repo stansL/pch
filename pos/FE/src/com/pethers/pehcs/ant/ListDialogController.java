@@ -26,22 +26,20 @@ public class ListDialogController implements Initializable{
     static NDeviceManager.DeviceCollection devices;
     @FXML private ListView listViewOfDevices;
     ObservableList<String> items =FXCollections.observableArrayList ();
-    static int selectedDevice;
     
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        devices = MainController.getDevices();
         for(int i=0;i<devices.size();i++)
             items.add(devices.get(0).getDisplayName());
         listViewOfDevices.setItems(items);
     }
     
     public void handleDeviceSelection(ActionEvent event){
-        selectedDevice = listViewOfDevices.getSelectionModel().getSelectedIndex();
+        MainController.selectedScannerIndex = listViewOfDevices.getSelectionModel().getSelectedIndex();
         ((Stage)listViewOfDevices.getScene().getWindow()).close();
     }
     
-    public static NDevice getSelectedDevice(){
-        return devices.get(selectedDevice);
-    }
+    
     
 }
