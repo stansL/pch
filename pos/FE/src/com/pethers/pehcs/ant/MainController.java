@@ -11,11 +11,17 @@ import com.neurotec.biometrics.NFinger;
 import com.neurotec.biometrics.NSubject;
 import com.neurotec.biometrics.NTemplateSize;
 import com.neurotec.biometrics.client.NBiometricClient;
+import com.neurotec.devices.NDevice;
 import com.neurotec.devices.NDeviceManager;
 import com.neurotec.devices.NDeviceManager.DeviceCollection;
 import com.neurotec.devices.NDeviceType;
+import com.neurotec.devices.NFScanner;
+import com.neurotec.images.NImage;
+import com.neurotec.io.NFile;
 import com.neurotec.licensing.NLicense;
 import com.neurotec.licensing.NLicensingService;
+import com.neurotec.plugins.NDataFile;
+import com.neurotec.plugins.NDataFileManager;
 import com.pethers.pehcs.entities.Visitor;
 import com.pethers.pehcs.neurotec.utils.ImageConverter;
 import com.pethers.pehcs.neurotec.utils.LibraryManager;
@@ -74,54 +80,14 @@ public class MainController implements Initializable {
     ImageView fingerPrint;
     CardService cardService;
     FingerPrintInitService fpService;
+    CaptureService captureService;
+    PreferenceManager prefManager;
     
     static Integer selectedScannerIndex = null;
     
     static DeviceCollection devices;
-   
-    public void fingerPrintScannerSetup(){
-        final String components = "Biometrics.FingerExtraction,Devices.FingerScanners";
-        LibraryManager.initLibraryPath();        
-        
-        try {
-
-            Logger.getAnonymousLogger().info("Licence server is "+NLicensingService.getStatus());
-            if (!NLicense.obtainComponents("/local", 5000, components)) {
-                Alert alert = new Alert(AlertType.WARNING);
-                alert.setTitle("No Licence");
-                alert.setContentText("Could not obtain a licence");
-                alert.show();
-                return;
-            }
-
-            biometricClient = new NBiometricClient();           
-            biometricClient.setUseDeviceManager(true);
-            NDeviceManager deviceManager = biometricClient.getDeviceManager();
-            deviceManager.setDeviceTypes(EnumSet.of(NDeviceType.FINGER_SCANNER));
-            deviceManager.initialize();
-            devices = deviceManager.getDevices();
-            
-            PreferenceManager prefManager = PreferenceManager.getInstance();
-
-            try{
-                selectedScannerIndex = Integer.parseInt(prefManager.getValueOfSelectedScanner());
-            }catch(NumberFormatException e){
-                Logger.getAnonymousLogger().warning("No scanner index specified");
-            }
-            if(selectedScannerIndex==null){
-              showDevicesDialog();     
-              if(selectedScannerIndex!=null){
-                  devices.get(selectedScannerIndex);
-                  Logger.getAnonymousLogger().info("Scanner was set successfully");
-              }
-            }
-               
-           
-        } catch (Exception th) {
-            throw new RuntimeException(th);
-        }
-    }
-    
+    static NImage capturedFingerImage;
+    static NDevice nDevice;
     static public DeviceCollection getDevices(){
         return devices;
     }
@@ -131,10 +97,9 @@ public class MainController implements Initializable {
         if(biometricClient==null){
             Alert alert = new Alert(AlertType.ERROR);
             alert.setTitle("Inadequate Initialization");
-            alert.setContentText("This application did not initialize properly. Please, ensure relevant licences and installed");
+            alert.setContentText("This application did not initialize properly. Please, ensure relevant licences are installed");
             alert.showAndWait();
         }
-            
         NBiometricStatus status = biometricClient.capture(subject);
         biometricClient.setFingersTemplateSize(NTemplateSize.LARGE);
         status = biometricClient.createTemplate(subject);
@@ -146,18 +111,11 @@ public class MainController implements Initializable {
     public void showDevicesDialog()throws Exception{
         final FXMLLoader loader = new FXMLLoader(getClass().getResource("listDialog.fxml"));
         final Parent root = loader.load();
-        final Scene scene = new Scene(root, 250, 150);
-        Stage stage = new Stage();
-        /*stage.initModality(Modality.APPLICATION_MODAL);
-       // stage.initStyle(StageStyle.UNDECORATED);
-        //stage.initOwner(emailField.getScene().getWindow());
-        Rectangle2D primScreenBounds = Screen.getPrimary().getVisualBounds();
-        stage.setX((primScreenBounds.getWidth() - stage.getWidth()) / 2);
-        stage.setY((primScreenBounds.getHeight() - stage.getHeight()) / 2);*/
-        
+        final Scene scene = new Scene(root);
+        Stage stage = new Stage();       
         stage.setScene(scene);
        
-        stage.show();
+        stage.showAndWait();
     }
     
     
@@ -331,39 +289,73 @@ public class MainController implements Initializable {
     }
     @Override
     public void initialize(URL url, ResourceBundle rb) {
-        System.out.println("Calling the initializer");
-        cardService = new CardService();
-        
-        FontIcon icon = new FontIcon("fa-play-circle");
-        icon.setIconSize(24);
-        resumeButton.setGraphic(icon);
-        
-        FontIcon addIcon = new FontIcon("fa-plus-circle");
-        addIcon.setIconSize(24);
-        addButton.setGraphic(addIcon);
-        
-        fpService = new FingerPrintInitService();
-        showProgress("Initializing...",fpService);
-        fpService.setOnFailed(new EventHandler(){
-            @Override
-            public void handle(Event event) {
-                throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-            }
+        try {
+            System.out.println("Calling the initializer");
+            cardService = new CardService();
+            captureService = new CaptureService();
             
-        });
-        fpService.setOnSucceeded(new EventHandler(){
-            @Override
-            public void handle(Event event) {
-                throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-            }
-        });
-        fpService.setOnCancelled(new EventHandler(){
-            @Override
-            public void handle(Event event) {
-                throw new UnsupportedOperationException("This app must be initialized. "); //To change body of generated methods, choose Tools | Templates.
-            }
-        });
-        fpService.restart();
+            FontIcon icon = new FontIcon("fa-play-circle");
+            icon.setIconSize(24);
+            resumeButton.setGraphic(icon);
+            
+            FontIcon addIcon = new FontIcon("fa-plus-circle");
+            addIcon.setIconSize(24);
+            addButton.setGraphic(addIcon);
+            
+            prefManager = PreferenceManager.getInstance();            
+            
+            fpService = new FingerPrintInitService();
+            showProgress("Initializing...", fpService);
+            fpService.setOnFailed(new EventHandler() {
+                @Override
+                public void handle(Event event) {
+                    Logger.getAnonymousLogger().log(Level.SEVERE, fpService.getException().getMessage(), fpService.getException());
+                }
+                
+            });
+            fpService.setOnSucceeded(new EventHandler() {
+                @Override
+                public void handle(Event event) {
+                    try {
+                        borderPane.setBottom(null);
+                        selectedScannerIndex = Integer.parseInt(prefManager.getValueOfSelectedScanner());                       
+
+                    } catch (NumberFormatException e) {
+                        Logger.getAnonymousLogger().warning("No scanner index specified");
+                        if (selectedScannerIndex == null) {
+                            try {
+                                showDevicesDialog();
+                                if (selectedScannerIndex != null&&selectedScannerIndex>=0) {
+                                    nDevice = devices.get(selectedScannerIndex);
+                                    Logger.getAnonymousLogger().info("Scanner was set successfully");
+                                    prefManager.setValueOfSelectedScanner(Integer.toString(selectedScannerIndex));
+                                    prefManager.save();
+                                }else{
+                                    Alert alert = new Alert(AlertType.WARNING);
+                                    alert.setTitle("Warning");
+                                    alert.setContentText("No scanner is set. This application may not function properly");
+                                    alert.showAndWait();
+                                }
+                            } catch (Exception ex) {
+                                Logger.getLogger(MainController.class.getName()).log(Level.SEVERE, null, ex);
+                            }
+                        }
+                    } catch (Exception e) {
+                        Logger.getAnonymousLogger().log(Level.SEVERE, e.getMessage(), e);
+                    }
+                    
+                }
+            });
+            fpService.setOnCancelled(new EventHandler() {
+                @Override
+                public void handle(Event event) {
+                    throw new UnsupportedOperationException("This app must be initialized. "); //To change body of generated methods, choose Tools | Templates.
+                }
+            });
+            fpService.restart();
+        } catch (IOException e) {
+            Logger.getAnonymousLogger().log(Level.SEVERE, e.getMessage(), e);
+        }
     }
 
     public Button createCloseVisitButton(final Tab tab){
@@ -391,23 +383,28 @@ public class MainController implements Initializable {
             public void handle(Event event) {
                 try {
                     //set progress
-                    NSubject subject = null;
-                    NFinger finger = null;
-                    subject = new NSubject();
-                    finger = new NFinger();
-                    subject.getFingers().add(finger);
-                    System.out.println("Capturing....");
-                    NBiometricStatus status = capture(subject);
+                    showProgress("Capturing",captureService);
+                    captureService.setOnSucceeded(new EventHandler(){
+                        @Override
+                        public void handle(Event event) {
+                            capturedFingerImage =captureService.getValue();
+                            fingerPrint.setImage(ImageConverter.toFxImage(capturedFingerImage.toImage()));
+                        }
+                    });
                     
-                    if (status == NBiometricStatus.OK) {
-                        System.out.println("Template extracted");
-                        fingerPrint.setImage(ImageConverter.toFxImage(subject.getFingers().get(0).getImage().toImage()));
-                        
-                    } else {
-                        Alert alert = new Alert(AlertType.ERROR);
-                        alert.setContentText("Extraction failed");
-                        alert.show();
-                    }
+                    captureService.setOnFailed(new EventHandler(){
+                        @Override
+                        public void handle(Event event) {
+                            
+                            Alert alert = new Alert(AlertType.ERROR);
+                            alert.setContentText(captureService.getException().getMessage());
+                            alert.show();
+                            Logger.getAnonymousLogger().log(Level.SEVERE, captureService.getException().getMessage(), captureService.getException());
+                        }
+                            
+                    });
+                    
+                    captureService.restart();
                 } catch (Exception ex) {
                     Logger.getLogger(MainController.class.getName()).log(Level.SEVERE, null, ex);
                 }
@@ -436,15 +433,64 @@ public class MainController implements Initializable {
                 boolean success = false;
                 @Override
                 protected Boolean call() throws Exception {
-                    fingerPrintScannerSetup();
+                    final String components = "Biometrics.FingerExtraction,Devices.FingerScanners";
+                    LibraryManager.initLibraryPath();      
+
+                    
+
+                    Logger.getAnonymousLogger().info("Licence server is "+NLicensingService.getStatus());
+                    if (!NLicense.obtainComponents("/local", 5000, components)) {
+                        throw new com.neurotec.lang.NotActivatedException("Could not obtain a licence");
+                    }
+                    NDataFileManager.getInstance().addFile("FingersDetectSegmentsClassifier.ndf");  
+                    NDataFile[] ndFiles = NDataFileManager.getInstance().getAllFiles();
+                    for(NDataFile ndFile:ndFiles){
+                        Logger.getAnonymousLogger().info(ndFile.getFileName()+" was loaded.");
+
+                    }
+                    biometricClient = new NBiometricClient();           
+                    biometricClient.setUseDeviceManager(true);
+                    NDeviceManager deviceManager = biometricClient.getDeviceManager();
+                    deviceManager.setDeviceTypes(EnumSet.of(NDeviceType.FINGER_SCANNER));
+                    deviceManager.initialize();
+                    devices = deviceManager.getDevices();
+                    
+                    
                     return success;
+                    
+                
+            };
+            };
+        }
+
+    }
+    
+    private class CaptureService extends Service<NImage>{
+
+        @Override
+        protected Task<NImage> createTask() {
+            return new Task<NImage>(){
+                @Override
+                protected NImage call() throws Exception {
+                    NSubject subject = null;
+                    NFinger finger = null;
+                    subject = new NSubject();
+                    finger = new NFinger();
+                    biometricClient.setFingerScanner((NFScanner) nDevice);
+                    subject.getFingers().add(finger);
+                    System.out.println("Capturing....");
+                    NBiometricStatus status = capture(subject);
+                    
+                    if (status == NBiometricStatus.OK) {
+                        System.out.println("Template extracted");
+                        return subject.getFingers().get(0).getImage();
+                    } else {
+                        throw new Exception("Extraction failed");
+                    }
                 }
                 
             };
-            
         }
-
-       
-
+    
     }
 }

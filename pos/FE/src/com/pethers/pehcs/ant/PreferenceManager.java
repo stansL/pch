@@ -35,6 +35,10 @@ public class PreferenceManager {
         return prop;
     }
     
+    public void setValueOfSelectedScanner(String value){
+        prop.setProperty("selected_scanner", value);
+    }
+    
     public String getValueOfSelectedScanner(){
         return prop.getProperty("selected_scanner");
     }
