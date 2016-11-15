@@ -11,21 +11,45 @@ Logging is not yet implemented for destructive routines!
 
 DELIMITER //
 
-/* ---------------------- */
-/* Setup service provider */
-/* ---------------------- */
+/* ------------------------------------- */
+/* Setup organisation (service provider) */
+/* ------------------------------------- */
+DROP PROCEDURE IF EXISTS finalize_create_sp//
+CREATE PROCEDURE finalize_create_sp(IN inOrgId INT)
+BEGIN
+END//
 
+DROP PROCEDURE IF EXISTS create_sp//
+CREATE PROCEDURE create_sp(IN p_connId varchar(128), p_code INT, p_name VARCHAR(255), p_expdate datetime, OUT p_orgId INT)
+/* add a new service provider */
+BEGIN
+	IF p_connId='' THEN BEGIN
+		IF isDbAdmin()=0 THEN
+			SIGNAL SQLSTATE '45200'	SET MESSAGE_TEXT ='you cannot do this';
+			END IF;
+		END;
+	ELSE
+		CALL verifyPrivilege(p_connId, 'create_sp', 'ADDORG');
+	END IF;
+	START TRANSACTION;
+	INSERT INTO organisations(code,name,expiryDate,createdBy)
+		   VALUES(p_code, p_name, p_expdate, CASE p_connId WHEN '' THEN NULL ELSE connId2userId(p_connId) END);
+	SET p_orgId = LAST_INSERT_ID();
+	CALL finalize_create_sp(p_orgId);
+	COMMIT;
+	
+END//
 DROP PROCEDURE IF EXISTS deactivate_sp//
 CREATE PROCEDURE deactivate_sp(p_connId VARCHAR(128), p_code INT)
 BEGIN
-		CALL verifyPrivilege(p_connId, 'deactivate_sp', 'SPDEACT');
+		CALL verifyPrivilege(p_connId, 'deactivate_sp', 'DEAORG');
 		UPDATE organisations SET expiryDate='1970-01-01' WHERE code=p_code;
 END//
 
 DROP PROCEDURE IF EXISTS activate_sp//
 CREATE PROCEDURE activate_sp(p_connId VARCHAR(128), p_code INT, p_date datetime)
 BEGIN
-		CALL verifyPrivilege(p_connId, 'activate_sp', 'SPACT');
+		CALL verifyPrivilege(p_connId, 'activate_sp', 'ACTORG');
 		UPDATE organisations SET expiryDate=p_date WHERE code=p_code;
 END//
 
@@ -33,7 +57,7 @@ END//
 DROP PROCEDURE IF EXISTS update_sp//
 CREATE PROCEDURE update_sp(p_connId VARCHAR(128), p_code INT, p_name VARCHAR(255))
 BEGIN
-		CALL verifyPrivilege(p_connId, 'update_sp', 'SPMOD');
+		CALL verifyPrivilege(p_connId, 'update_sp', 'UPDORG');
 		-- for now, just the name:
 		UPDATE organisations SET name=p_name WHERE code=p_code;
 END//
@@ -240,7 +264,7 @@ BEGIN
 	DECLARE v_alias VARCHAR(32) DEFAULT NULL;
 --	DECLARE v_insurerId INT DEFAULT NULL;
 
-	CALL verifyPrivilege(p_connId, 'addBeneficiary', 'ADDBENI');
+	CALL verifyPrivilege(p_connId, 'addBeneficiary', 'ADDBENIF');
 	/* verify insurerer status */
 	   SELECT i.alias, i.status, s.name
 	     FROM insurers i
@@ -369,10 +393,10 @@ ELSE
 		OPEN cur;
 		REPEAT
 			FETCH cur INTO v_type, v_value; -- v_type, v_value: approval requirement types and the threshold values
-			IF v_type NOT IN ('cost','qty') THEN
-				SIGNAL SQLSTATE '45210' SET MESSAGE_TEXT = 'Not implemented';
-			END IF;
 			IF NOT done THEN
+				IF v_type NOT IN ('cost','qty') THEN
+					SIGNAL SQLSTATE '45210' SET MESSAGE_TEXT = 'Not implemented';
+				END IF;
 				IF v_value IS NULL OR v_value <
 					CASE v_type WHEN 'cost' THEN v_costToInsurer ELSE v_qty END THEN
 						BEGIN
