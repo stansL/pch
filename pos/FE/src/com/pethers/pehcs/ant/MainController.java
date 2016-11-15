@@ -12,18 +12,22 @@ import com.neurotec.biometrics.NSubject;
 import com.neurotec.biometrics.NTemplateSize;
 import com.neurotec.biometrics.client.NBiometricClient;
 import com.neurotec.devices.NDeviceManager;
+import com.neurotec.devices.NDeviceManager.DeviceCollection;
 import com.neurotec.devices.NDeviceType;
-import com.neurotec.devices.NFScanner;
 import com.neurotec.licensing.NLicense;
 import com.neurotec.licensing.NLicensingService;
 import com.pethers.pehcs.entities.Visitor;
 import com.pethers.pehcs.neurotec.utils.ImageConverter;
 import com.pethers.pehcs.neurotec.utils.LibraryManager;
 import com.pethers.pehcs.services.CardService;
+import java.io.IOException;
 import java.net.URL;
 import java.util.EnumSet;
 import java.util.ResourceBundle;
+import java.util.logging.Level;
 import java.util.logging.Logger;
+import javafx.concurrent.Service;
+import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.event.Event;
 import javafx.event.EventHandler;
@@ -31,7 +35,6 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.geometry.Pos;
-import javafx.geometry.Rectangle2D;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
@@ -52,8 +55,6 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.RowConstraints;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
-import javafx.stage.Modality;
-import javafx.stage.Screen;
 import javafx.stage.Stage;
 import org.kordamp.ikonli.javafx.FontIcon;
 
@@ -62,6 +63,7 @@ import org.kordamp.ikonli.javafx.FontIcon;
  * @author user
  */
 public class MainController implements Initializable {
+
     public static NBiometricClient biometricClient = null;
 
 
@@ -71,13 +73,18 @@ public class MainController implements Initializable {
     @FXML private Button addButton;
     ImageView fingerPrint;
     CardService cardService;
+    FingerPrintInitService fpService;
     
+    static Integer selectedScannerIndex = null;
+    
+    static DeviceCollection devices;
    
-    private void fingerPrintScannerSetup(){
+    public void fingerPrintScannerSetup(){
         final String components = "Biometrics.FingerExtraction,Devices.FingerScanners";
         LibraryManager.initLibraryPath();        
         
         try {
+
             Logger.getAnonymousLogger().info("Licence server is "+NLicensingService.getStatus());
             if (!NLicense.obtainComponents("/local", 5000, components)) {
                 Alert alert = new Alert(AlertType.WARNING);
@@ -87,22 +94,40 @@ public class MainController implements Initializable {
                 return;
             }
 
-            biometricClient = new NBiometricClient();
-           
+            biometricClient = new NBiometricClient();           
             biometricClient.setUseDeviceManager(true);
             NDeviceManager deviceManager = biometricClient.getDeviceManager();
             deviceManager.setDeviceTypes(EnumSet.of(NDeviceType.FINGER_SCANNER));
             deviceManager.initialize();
-            ListDialogController.devices = deviceManager.getDevices();
-            showDevicesDialog();        
-           
+            devices = deviceManager.getDevices();
+            
+            PreferenceManager prefManager = PreferenceManager.getInstance();
+
+            try{
+                selectedScannerIndex = Integer.parseInt(prefManager.getValueOfSelectedScanner());
+            }catch(NumberFormatException e){
+                Logger.getAnonymousLogger().warning("No scanner index specified");
+            }
+            if(selectedScannerIndex==null){
+              showDevicesDialog();     
+              if(selectedScannerIndex!=null){
+                  devices.get(selectedScannerIndex);
+                  Logger.getAnonymousLogger().info("Scanner was set successfully");
+              }
+            }
+               
            
         } catch (Exception th) {
             throw new RuntimeException(th);
         }
     }
     
-    public static NBiometricStatus capture(NSubject subject){
+    static public DeviceCollection getDevices(){
+        return devices;
+    }
+    
+    public  NBiometricStatus capture(NSubject subject) throws IOException, Exception{
+        
         if(biometricClient==null){
             Alert alert = new Alert(AlertType.ERROR);
             alert.setTitle("Inadequate Initialization");
@@ -118,66 +143,72 @@ public class MainController implements Initializable {
 
     }
     
-    private void showDevicesDialog()throws Exception{
+    public void showDevicesDialog()throws Exception{
         final FXMLLoader loader = new FXMLLoader(getClass().getResource("listDialog.fxml"));
         final Parent root = loader.load();
         final Scene scene = new Scene(root, 250, 150);
         Stage stage = new Stage();
-        stage.initModality(Modality.APPLICATION_MODAL);
+        /*stage.initModality(Modality.APPLICATION_MODAL);
        // stage.initStyle(StageStyle.UNDECORATED);
         //stage.initOwner(emailField.getScene().getWindow());
         Rectangle2D primScreenBounds = Screen.getPrimary().getVisualBounds();
         stage.setX((primScreenBounds.getWidth() - stage.getWidth()) / 2);
-        stage.setY((primScreenBounds.getHeight() - stage.getHeight()) / 2);
+        stage.setY((primScreenBounds.getHeight() - stage.getHeight()) / 2);*/
         
         stage.setScene(scene);
-        stage.setOnCloseRequest(new EventHandler(){
-            @Override
-            public void handle(Event event) {
-                biometricClient.setFingerScanner((NFScanner) ListDialogController.getSelectedDevice());
-            }
-        });
+       
         stage.show();
     }
     
-    @FXML
-    private void addVisit(ActionEvent event) {  
+    
+    public void showProgress(String status,Service service){
         HBox progressBarHolder = new HBox();
         progressBarHolder.setMaxHeight(-1.0);
         progressBarHolder.setPrefWidth(-1.0);
         progressBarHolder.setSpacing(2.0);
-        
-        Label statusLabel = new Label("Reading card...");
+        Label statusLabel = new Label(status);
         progressBarHolder.getChildren().add(statusLabel);
-        ProgressBar cardReadingProgressBar = new ProgressBar();
+        ProgressBar progressBar = new ProgressBar();
         
-        cardReadingProgressBar.setPrefWidth(143.0);
-        cardReadingProgressBar.setProgress(-1.0);
-        cardReadingProgressBar.visibleProperty().bind(cardService.runningProperty());
-        progressBarHolder.getChildren().add(cardReadingProgressBar);
-        
-        Button cancelCardReadingButton = new Button();
-        cancelCardReadingButton.setStyle("-fx-border-width:1px;-fx-padding:0px");
+        progressBar.setPrefWidth(143.0);
+        progressBar.setProgress(-1.0);
+        progressBar.visibleProperty().bind(service.runningProperty());
+        progressBarHolder.getChildren().add(progressBar);
+        Button cancelButton = new Button();
+        cancelButton.setStyle("-fx-border-width:1px;-fx-padding:0px");
         FontIcon icon = new FontIcon("fa-close");
         icon.setIconSize(16);
-        cancelCardReadingButton.setGraphic(icon);
-        cancelCardReadingButton.setOnAction(new EventHandler(){
+        cancelButton.setGraphic(icon);
+        cancelButton.setOnAction(new EventHandler(){
             @Override
             public void handle(Event event) {
-                cardService.cancel();
-                borderPane.setBottom(null);
-                Alert alert = new Alert(AlertType.INFORMATION);
-                alert.setTitle("Information");
-                alert.setHeaderText(null);
-                alert.setContentText("Task Cancelled!");
-                
-                alert.show();
+                try{
+                    service.cancel();
+                    borderPane.setBottom(null);
+                    Alert alert = new Alert(AlertType.INFORMATION);
+                    alert.setTitle("Information");
+                    alert.setHeaderText(null);
+                    alert.setContentText("Task Cancelled!");
+
+                    alert.show();
+                }catch(Exception e){
+                    Alert alert = new Alert(AlertType.INFORMATION);
+                    alert.setTitle("Error");
+                    alert.setHeaderText(null);
+                    alert.setContentText(e.getMessage());
+                }
+               
             }
         });
-        progressBarHolder.getChildren().add(cancelCardReadingButton);
-        
+        progressBarHolder.getChildren().add(cancelButton);
         borderPane.setBottom(progressBarHolder);        
+    }
+    
+    @FXML
+    private void addVisit(ActionEvent event) {     
         
+        showProgress("Reading card...",cardService);       
+                
         
         cardService.setOnFailed(new EventHandler(){
             @Override
@@ -311,7 +342,28 @@ public class MainController implements Initializable {
         addIcon.setIconSize(24);
         addButton.setGraphic(addIcon);
         
-        fingerPrintScannerSetup();
+        fpService = new FingerPrintInitService();
+        showProgress("Initializing...",fpService);
+        fpService.setOnFailed(new EventHandler(){
+            @Override
+            public void handle(Event event) {
+                throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+            }
+            
+        });
+        fpService.setOnSucceeded(new EventHandler(){
+            @Override
+            public void handle(Event event) {
+                throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+            }
+        });
+        fpService.setOnCancelled(new EventHandler(){
+            @Override
+            public void handle(Event event) {
+                throw new UnsupportedOperationException("This app must be initialized. "); //To change body of generated methods, choose Tools | Templates.
+            }
+        });
+        fpService.restart();
     }
 
     public Button createCloseVisitButton(final Tab tab){
@@ -337,23 +389,27 @@ public class MainController implements Initializable {
         button.setOnAction(new EventHandler(){
             @Override
             public void handle(Event event) {
-                //set progress
-                NSubject subject = null;
-                NFinger finger = null;
-                subject = new NSubject();
-                finger = new NFinger();
-                subject.getFingers().add(finger);
-                System.out.println("Capturing....");
-                NBiometricStatus status = capture(subject);
-
-                if (status == NBiometricStatus.OK) {
-                    System.out.println("Template extracted");
-                    fingerPrint.setImage(ImageConverter.toFxImage(subject.getFingers().get(0).getImage().toImage()));
+                try {
+                    //set progress
+                    NSubject subject = null;
+                    NFinger finger = null;
+                    subject = new NSubject();
+                    finger = new NFinger();
+                    subject.getFingers().add(finger);
+                    System.out.println("Capturing....");
+                    NBiometricStatus status = capture(subject);
                     
-                } else {
-                    Alert alert = new Alert(AlertType.ERROR);
-                    alert.setContentText("Extraction failed");
-                    alert.show();
+                    if (status == NBiometricStatus.OK) {
+                        System.out.println("Template extracted");
+                        fingerPrint.setImage(ImageConverter.toFxImage(subject.getFingers().get(0).getImage().toImage()));
+                        
+                    } else {
+                        Alert alert = new Alert(AlertType.ERROR);
+                        alert.setContentText("Extraction failed");
+                        alert.show();
+                    }
+                } catch (Exception ex) {
+                    Logger.getLogger(MainController.class.getName()).log(Level.SEVERE, null, ex);
                 }
             }
         });
@@ -372,4 +428,23 @@ public class MainController implements Initializable {
         return leftImageHolder;
     }
     
+    private class FingerPrintInitService extends Service<Boolean> {
+
+        @Override
+        protected Task<Boolean> createTask() {
+            return new Task<Boolean>(){
+                boolean success = false;
+                @Override
+                protected Boolean call() throws Exception {
+                    fingerPrintScannerSetup();
+                    return success;
+                }
+                
+            };
+            
+        }
+
+       
+
+    }
 }
