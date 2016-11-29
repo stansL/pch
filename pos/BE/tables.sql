@@ -147,6 +147,7 @@ create table insurer_status_types(
 
 -- ---------------------------
 -- 2. transaction data
+-- ``assigned centrally'' means assigned by Pether Solutions
 -- ---------------------------
 
 -- Entity: Organisation
@@ -154,7 +155,7 @@ drop table  if exists organisations;
 CREATE TABLE organisations (
 	/* the service provider */
 		orgId INTEGER auto_increment NOT NULL PRIMARY KEY
-		,code INTEGER NOT NULL -- this can also work as PK
+		,code SMALLINT UNSIGNED NOT NULL -- this can also work as PK; assigned centrally
 		,name VARCHAR(255) NOT NULL
 		,expiryDate datetime NOT NULL
 		,createdBy integer null
@@ -173,7 +174,7 @@ create table insurers(
 		*/
 		insurerId int not null primary key
 		
-		,alias varchar(32) not null comment 'short name' -- may be stored on card
+		,alias varchar(32) not null comment 'short name' -- stored on card; assigned centrally
 		,name varchar(255) not null comment 'full name'
 		,status char(5) not null default 'act'
 		,createdAt timestamp not null default current_timestamp
@@ -314,8 +315,8 @@ drop table if exists packages;
 create table packages(
 	packageId int auto_increment not null primary key
 	,insurerId int not null
-	,name varchar(32) not null
-	,descr varchar(255)
+	,name varchar(16) not null -- read from card
+	,descr varchar(255) -- reduce length if this has to be on the card
 	,constraint uniq_name unique(insurerId, name)
 	,constraint foreign key(insurerId) references insurers(insurerId) on delete cascade
 ) ENGINE=InnoDB;
