@@ -28,6 +28,7 @@ public class Main extends Application {
         System.loadLibrary("NdmMedia");
         System.loadLibrary("NMedia");
         System.loadLibrary("NMediaProc");
+        //System.load("FingersDetectSegmentsClassifier.ndf");
         
         setUserAgentStylesheet(STYLESHEET_MODENA);        
         Parent root = FXMLLoader.load(getClass().getResource("login.fxml"));
