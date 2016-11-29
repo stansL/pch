@@ -28,18 +28,18 @@ if(!isset($ops[$op])){
 }
  */
 $conn = $dbinst->getConnection();
-$uName = mysqlvarval_NVL('uName', $conn);// connection id for logoutUser
+$uName = mysqlvarval_NVL('user', $conn);// connection id for logoutUser
 if($uName == 'NULL')
 	send_error('Missing arg -- username', '', WS_ERR_MISSING);
 if($op == 'login'){
 	$pass=mysqlvarval_NVL('pass', $conn, 'post');
 	if($pass == 'NULL')
 		send_error('Missing arg -- password', '', WS_ERR_MISSING);
-	$orgId = mysqlvarval_NVL('orgID', $conn);
+	$orgId = mysqlvarval_NVL('orgid', $conn);
 	$magik = mysqlvarval_NVL('magik', $conn);
-	$remHost = mysqlvarval_NVL('remHost', $conn);
-	$machineID = mysqlvarval_NVL('machineID', $conn);
-	$machineIDType = mysqlvarval_NVL('machineIDType', $conn);
+	$remHost = mysqlvarval_NVL('remhost', $conn);
+	$machineID = mysqlvarval_NVL('mid', $conn);
+	$machineIDType = mysqlvarval_NVL('midtype', $conn);
 	$proc = 'loginUser';
 	$params = $uName . ",". $orgId . "," . $pass . "," . $machineID . "," . $machineIDType . "," . $remHost . "," . $magik;
 //	die($params);
@@ -51,11 +51,11 @@ if($op == 'login'){
 	send_error("Operation not implemented -- ${op}", '', WS_ERR_NOTIMPL);
 }
 try{
-	$result = $dbinst->procCall($proc, $params);
+		$result = ($op == 'login')? $dbinst->procCallEx($proc, $params): $dbinst->procCallEx($proc, $params);
 	if($op == 'login'){
-		$_SESSION['username'] = $_POST['uName'];
-		$_SESSION['loggedIn'] = true;
 		$_SESSION['userDetails'] = $result[0][0];
+		$_SESSION['username'] = $_SESSION['userDetails']['username'];
+		$_SESSION['loggedIn'] = true;
 		$_SESSION['userid'] = $_SESSION['userDetails']['USERID'];
 		$_SESSION['appid'] = $_SESSION['userDetails']['APPID'];
 		$perm_array=array();
