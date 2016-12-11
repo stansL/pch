@@ -20,14 +20,14 @@ public class Main extends Application {
         
     @Override
     public void start(Stage stage) throws Exception {
-        System.loadLibrary("NLicensing");
-        System.loadLibrary("NCore");
-        System.loadLibrary("NBiometricClient");
-        System.loadLibrary("NBiometrics");
-        System.loadLibrary("NDevices");
-        System.loadLibrary("NdmMedia");
-        System.loadLibrary("NMedia");
-        System.loadLibrary("NMediaProc");
+//        System.loadLibrary("NLicensing");
+//        System.loadLibrary("NCore");
+//        System.loadLibrary("NBiometricClient");
+//        System.loadLibrary("NBiometrics");
+//        System.loadLibrary("NDevices");
+//        System.loadLibrary("NdmMedia");
+//        System.loadLibrary("NMedia");
+//        System.loadLibrary("NMediaProc");
         //System.load("FingersDetectSegmentsClassifier.ndf");
         
         setUserAgentStylesheet(STYLESHEET_MODENA);        

@@ -17,7 +17,6 @@ import com.neurotec.devices.NDeviceManager.DeviceCollection;
 import com.neurotec.devices.NDeviceType;
 import com.neurotec.devices.NFScanner;
 import com.neurotec.images.NImage;
-import com.neurotec.io.NFile;
 import com.neurotec.licensing.NLicense;
 import com.neurotec.licensing.NLicensingService;
 import com.neurotec.plugins.NDataFile;
@@ -26,12 +25,6 @@ import com.pethers.pehcs.entities.Visitor;
 import com.pethers.pehcs.neurotec.utils.ImageConverter;
 import com.pethers.pehcs.neurotec.utils.LibraryManager;
 import com.pethers.pehcs.services.CardService;
-import java.io.IOException;
-import java.net.URL;
-import java.util.EnumSet;
-import java.util.ResourceBundle;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javafx.concurrent.Service;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
@@ -43,26 +36,21 @@ import javafx.fxml.Initializable;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
+import javafx.scene.control.*;
 import javafx.scene.control.Alert.AlertType;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.ProgressBar;
-import javafx.scene.control.Tab;
-import javafx.scene.control.TabPane;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.ColumnConstraints;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.RowConstraints;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import javafx.scene.text.Font;
 import javafx.stage.Stage;
 import org.kordamp.ikonli.javafx.FontIcon;
+
+import java.io.IOException;
+import java.net.URL;
+import java.util.EnumSet;
+import java.util.ResourceBundle;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -93,7 +81,7 @@ public class MainController implements Initializable {
     }
     
     public  NBiometricStatus capture(NSubject subject) throws IOException, Exception{
-        
+
         if(biometricClient==null){
             Alert alert = new Alert(AlertType.ERROR);
             alert.setTitle("Inadequate Initialization");
@@ -119,7 +107,7 @@ public class MainController implements Initializable {
     }
     
     
-    public void showProgress(String status,Service service){
+    public void showProgress(String status, final Service service){
         HBox progressBarHolder = new HBox();
         progressBarHolder.setMaxHeight(-1.0);
         progressBarHolder.setPrefWidth(-1.0);
@@ -244,7 +232,7 @@ public class MainController implements Initializable {
         rightImageHolder.setPrefHeight(200);
         rightImageHolder.setSpacing(10);
         rightImageHolder.getChildren().add(createFingerPrintView(visitor));
-        rightImageHolder.getChildren().add(createCaptureButton()); 
+        rightImageHolder.getChildren().add(createCaptureButton());
         return rightImageHolder;
     }
     private Label makeLabel(double x,double y,String text){
@@ -311,14 +299,14 @@ public class MainController implements Initializable {
                 public void handle(Event event) {
                     Logger.getAnonymousLogger().log(Level.SEVERE, fpService.getException().getMessage(), fpService.getException());
                 }
-                
+
             });
             fpService.setOnSucceeded(new EventHandler() {
                 @Override
                 public void handle(Event event) {
                     try {
                         borderPane.setBottom(null);
-                        selectedScannerIndex = Integer.parseInt(prefManager.getValueOfSelectedScanner());                       
+                        selectedScannerIndex = Integer.parseInt(prefManager.getValueOfSelectedScanner());
 
                     } catch (NumberFormatException e) {
                         Logger.getAnonymousLogger().warning("No scanner index specified");
@@ -343,7 +331,7 @@ public class MainController implements Initializable {
                     } catch (Exception e) {
                         Logger.getAnonymousLogger().log(Level.SEVERE, e.getMessage(), e);
                     }
-                    
+
                 }
             });
             fpService.setOnCancelled(new EventHandler() {
@@ -391,19 +379,19 @@ public class MainController implements Initializable {
                             fingerPrint.setImage(ImageConverter.toFxImage(capturedFingerImage.toImage()));
                         }
                     });
-                    
+
                     captureService.setOnFailed(new EventHandler(){
                         @Override
                         public void handle(Event event) {
-                            
+
                             Alert alert = new Alert(AlertType.ERROR);
                             alert.setContentText(captureService.getException().getMessage());
                             alert.show();
                             Logger.getAnonymousLogger().log(Level.SEVERE, captureService.getException().getMessage(), captureService.getException());
                         }
-                            
+
                     });
-                    
+
                     captureService.restart();
                 } catch (Exception ex) {
                     Logger.getLogger(MainController.class.getName()).log(Level.SEVERE, null, ex);
@@ -434,31 +422,31 @@ public class MainController implements Initializable {
                 @Override
                 protected Boolean call() throws Exception {
                     final String components = "Biometrics.FingerExtraction,Devices.FingerScanners";
-                    LibraryManager.initLibraryPath();      
+                    LibraryManager.initLibraryPath();
 
-                    
+
 
                     Logger.getAnonymousLogger().info("Licence server is "+NLicensingService.getStatus());
                     if (!NLicense.obtainComponents("/local", 5000, components)) {
                         throw new com.neurotec.lang.NotActivatedException("Could not obtain a licence");
                     }
-                    NDataFileManager.getInstance().addFile("FingersDetectSegmentsClassifier.ndf");  
+                    NDataFileManager.getInstance().addFile("FingersDetectSegmentsClassifier.ndf");
                     NDataFile[] ndFiles = NDataFileManager.getInstance().getAllFiles();
                     for(NDataFile ndFile:ndFiles){
                         Logger.getAnonymousLogger().info(ndFile.getFileName()+" was loaded.");
 
                     }
-                    biometricClient = new NBiometricClient();           
+                    biometricClient = new NBiometricClient();
                     biometricClient.setUseDeviceManager(true);
                     NDeviceManager deviceManager = biometricClient.getDeviceManager();
                     deviceManager.setDeviceTypes(EnumSet.of(NDeviceType.FINGER_SCANNER));
                     deviceManager.initialize();
                     devices = deviceManager.getDevices();
-                    
-                    
+
+
                     return success;
-                    
-                
+
+
             };
             };
         }
@@ -480,7 +468,7 @@ public class MainController implements Initializable {
                     subject.getFingers().add(finger);
                     System.out.println("Capturing....");
                     NBiometricStatus status = capture(subject);
-                    
+
                     if (status == NBiometricStatus.OK) {
                         System.out.println("Template extracted");
                         return subject.getFingers().get(0).getImage();
@@ -488,9 +476,9 @@ public class MainController implements Initializable {
                         throw new Exception("Extraction failed");
                     }
                 }
-                
+
             };
         }
-    
+
     }
 }

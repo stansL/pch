@@ -6,14 +6,13 @@
 package com.pethers.pehcs.services;
 
 import com.pethers.pehcs.messengers.LoginResult;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javafx.concurrent.Service;
 import javafx.concurrent.Task;
-import javafx.scene.paint.Color;
-import retrofit2.Response;
+import retrofit2.GsonConverterFactory;
 import retrofit2.Retrofit;
-import retrofit2.converter.gson.GsonConverterFactory;
+
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
